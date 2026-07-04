@@ -1,0 +1,14 @@
+streamlit
+requests
+beautifulsoup4
+pdfplumber
+openai
+africastalking
+firebase_admin
+plotly
+wordcloud
+matplotlib
+python-dotenv
+pandas
+Pillow
+pytesseract
