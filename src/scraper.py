@@ -39,9 +39,23 @@ def get_bills():
                     bills.append({'title': text, 'url': full_url})
         
         # Deduplicate based on URL
-        unique_bills = {v['url']: v for v in bills}.values()
-        return list(unique_bills)
+        unique_bills = list({v['url']: v for v in bills}.values())
+        
+        # Ensure the demo Motor Vehicle Circulation Tax Bill is always included
+        demo_bill = {
+            'title': 'The Motor Vehicle Circulation Tax Bill, 2026',
+            'url': 'https://www.parliament.go.ke/sites/default/files/2026-06/Motor_Vehicle_Circulation_Tax_Bill_2026.pdf'
+        }
+        
+        if not any(b['url'] == demo_bill['url'] for b in unique_bills):
+            unique_bills.insert(0, demo_bill)
+
+        return unique_bills
 
     except Exception as e:
         print(f"Scraping Error: {e}")
-        return []
+        # Fallback to demo bill if scraper encounters network/site structure issues
+        return [{
+            'title': 'The Motor Vehicle Circulation Tax Bill, 2026',
+            'url': 'https://www.parliament.go.ke/sites/default/files/2026-06/Motor_Vehicle_Circulation_Tax_Bill_2026.pdf'
+        }]

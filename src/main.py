@@ -18,8 +18,8 @@ from hustle_profiles import INDUSTRIES, HUSTLE_PROFILES
 st.set_page_config(page_title="KeLegislate AI", layout="wide")
 
 # --- Session State Management ---
-if 'bills' not in st.session_state:
-    st.session_state['bills'] = []
+if 'bills' not in st.session_state or not st.session_state['bills']:
+    st.session_state['bills'] = scraper.get_bills()
 if 'current_bill_text' not in st.session_state:
     st.session_state['current_bill_text'] = ""
 if 'current_summary' not in st.session_state:
