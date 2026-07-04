@@ -38,12 +38,71 @@
 - When financial bills pass unnoticed, informal workers absorb sudden, undebated costs, for example with the 2.5% motor vehicle circulation tax, a boda rider suddenly owes an extra Ksh 5,000 at insurance renewal, or an Uber driver faces a Ksh 17,500 lump-sum hit with no forewarning and no seat at the table that shaped the policy.
 
 ---
+
 ## Run Instructions
 
----
-## Project Structure
+### Prerequisites
+
+- **Python 3.10+**
+- **Tesseract OCR** (for scanned PDF extraction: `apt-get install tesseract-ocr` or Windows binary)
+- **Google Firebase Firestore** (database for bill cache, citizen feedback, and SMS subscribers)
+- **DeepSeek API Key** (for AI bill summarization & financial impact modeling)
+- **Africa's Talking API Credentials** (for SMS alert delivery — Sandbox or Live)
+
+### Quick Start
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/stevewanash/KeLegislate.git
+cd KeLegislate
+
+# 2. Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+
+# 3. Install required Python packages
+pip install -r requirements.txt
+
+# 4. Configure application secrets
+# Create the file src/.streamlit/secrets.toml with your API credentials:
+cat << 'EOF' > src/.streamlit/secrets.toml
+DEEPSEEK_API_KEY = "your-deepseek-api-key"
+AFRICASTALKING_USERNAME = "sandbox"
+AFRICASTALKING_API_KEY = "your-africastalking-api-key"
+FIREBASE_SERVICE_ACCOUNT = """{
+  ... your firebase service account JSON string ...
+}"""
+EOF
+
+# 5. Seed demo bill data (Optional but recommended for offline testing)
+python src/seed_demo.py
+
+# 6. Launch the Streamlit web application
+streamlit run src/main.py
+```
 
 ---
+
+## 📁 Project Structure
+
+```
+.
+├── README.md                           ← You are here
+├── LICENSE                             ← MIT License
+├── requirements.txt                    ← Python package dependencies
+├── packages.txt                        ← Linux system packages (Tesseract OCR)
+├── docs/
+│   └── problemstatement.md             ← Detailed problem statement & target personas
+└── src/
+    ├── main.py                         ← Streamlit application entry point (Tabs 1-4 UI)
+    ├── llm_utils.py                    ← DeepSeek LLM prompts, summarizer, & impact modeler
+    ├── feedback_utils.py               ← Firestore DB CRUD (Bills, Citizen Feedback, Subscribers)
+    ├── hustle_profiles.py              ← Business profiles & KES metrics (BodaBoda, Uber/Bolt, Fleets)
+    ├── sms_utils.py                    ← Africa's Talking SMS integration & notification dispatcher
+    ├── scraper.py                      ← Scrapes active bill PDFs from parliament.go.ke
+    ├── pdf_utils.py                    ← PDF text extraction with PyTesseract OCR fallback
+    └── seed_demo.py                    ← Demo bill seeder (Motor Vehicle Circulation Tax Bill 2026)
+```
 
 ## Approach & Architecture
 <img width="2760" height="2120" alt="kelegislate_architecture_simple_white" src="https://github.com/user-attachments/assets/97d4df9b-3ac9-4f15-a1d5-9c5750b7e90a" />
