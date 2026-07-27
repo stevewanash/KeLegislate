@@ -1,0 +1,39 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.api import bills, impact, feedback, subscribe, profile, dashboard, webhooks
+
+app = FastAPI(
+    title="KeLegislate API",
+    description="Proactive civic technology platform matching proposed Kenyan legislation to informal worker livelihoods.",
+    version="1.0.0"
+)
+
+# CORS setup
+origins = [
+    "https://kelegislate.vercel.app",
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+# Include Routers
+app.include_router(bills.router, prefix="/api")
+app.include_router(impact.router, prefix="/api")
+app.include_router(feedback.router, prefix="/api")
+app.include_router(subscribe.router, prefix="/api")
+app.include_router(profile.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+app.include_router(webhooks.router, prefix="/api")
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint to verify backend service state.
+    """
+    return {"status": "ok"}
