@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from app.config import settings
-from app.database import supabase
+from app.database import supabase_admin
 from app.services.extractor import extract_text_from_pdf
 
 BILL_URL = "https://www.parliament.go.ke/sites/default/files/2026-06/Motor_Vehicle_Circulation_Tax_Bill_2026.pdf"
@@ -155,13 +155,13 @@ async def seed_bill():
         try:
             # Check or create bucket
             try:
-                supabase.storage.create_bucket(bucket_name, options={"public": True})
+                supabase_admin.storage.create_bucket(bucket_name, options={"public": True})
             except Exception:
                 # Already exists
                 pass
                 
             file_name = f"{url_hash}.pdf"
-            supabase.storage.from_(bucket_name).upload(
+            supabase_admin.storage.from_(bucket_name).upload(
                 path=file_name,
                 file=pdf_data,
                 file_options={"content-type": "application/pdf", "x-upsert": "true"}
@@ -179,17 +179,17 @@ async def seed_bill():
         print("\nInserting record into Supabase PostgreSQL...")
         try:
             # Deduplicate check
-            res = supabase.table("bills").select("id").eq("url_hash", url_hash).execute()
+            res = supabase_admin.table("bills").select("id").eq("url_hash", url_hash).execute()
             if res.data:
                 bill_id = res.data[0]["id"]
                 print(f"Bill already exists in DB with ID: {bill_id}. Updating extracted text...")
-                supabase.table("bills").update({
+                supabase_admin.table("bills").update({
                     "extracted_text": final_text,
                     "pdf_storage_path": storage_path,
                     "ai_status": "ingested"
                 }).eq("url_hash", url_hash).execute()
             else:
-                insert_res = supabase.table("bills").insert({
+                insert_res = supabase_admin.table("bills").insert({
                     "title": BILL_TITLE,
                     "url_hash": url_hash,
                     "source_url": BILL_URL,

@@ -307,7 +307,6 @@ The database schema consists of 9 tables in Supabase PostgreSQL, organized into 
 | `verification_score` | DECIMAL(3,2) | NULLABLE | 0.00 – 1.00 confidence score from Verification Agent |
 | `regex_extractions` | JSONB | NULLABLE | JSON array of deterministically extracted values (percentages, monetary amounts, with context) |
 | `source_api` | VARCHAR(20) | NOT NULL, DEFAULT 'scraper' | Which source discovered this bill: `scraper` |
-| `parliament_status` | VARCHAR(50) | NULLABLE | Bill status if available (e.g., "First Reading", "Committee Stage") |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | When the bill was first ingested |
 | `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last modification timestamp (auto-updated via trigger) |
 
