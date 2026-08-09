@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     SUPABASE_DB_URL: str
     
     GEMINI_API_KEY: str
+    GEMINI_PLATFORM: str = "vertex_ai"
     
     AFRICAS_TALKING_USERNAME: str = "sandbox"
     AFRICAS_TALKING_API_KEY: str
@@ -40,6 +41,7 @@ except Exception as e:
         SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "mock-service-key")
         SUPABASE_DB_URL = os.environ.get("SUPABASE_DB_URL", "postgresql://mock@localhost:5432/mock")
         GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "mock-gemini-key")
+        GEMINI_PLATFORM = os.environ.get("GEMINI_PLATFORM", "vertex_ai")
         AFRICAS_TALKING_USERNAME = os.environ.get("AFRICAS_TALKING_USERNAME", "sandbox")
         AFRICAS_TALKING_API_KEY = os.environ.get("AFRICAS_TALKING_API_KEY", "mock-at-key")
         AFRICAS_TALKING_SENDER_ID = os.environ.get("AFRICAS_TALKING_SENDER_ID", None)

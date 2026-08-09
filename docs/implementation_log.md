@@ -118,3 +118,28 @@ Following step 2.2, a pivot in target market and product scope was introduced:
   - Resume the implementation plan at **Step 2.3 — Gemini Client Setup**.
   - Subsequent steps (2.4 Summarizer, 2.6 Verifier, 2.8 Impact Agent, 2.9 Orchestrator, 2.10 Endpoints) must reference the redesign specifications ([redesign.md](file:///C:/Users/Steve%20Wanangwe/.gemini/antigravity-ide/brain/b7d586e9-6b00-458f-8ef0-a62a9ac3604e/redesign.md)) to support dual financial/regulatory routing.
 
+
+### Step 2.3 — Gemini Client Setup
+
+#### What Was Done
+- **Gemini Client Wrapper:** Implemented [gemini_client.py](file:///c:/git/KeLegislate/backend/app/agents/gemini_client.py) using the `google-genai` Python SDK.
+- **Response Schema:** Defined `GeminiResponse` Pydantic model capturing `text`, `parsed` structured data, `prompt_tokens`, `completion_tokens`, `total_tokens`, `latency_ms`, and `model_name`.
+- **Core Helper Functions:** Added `get_gemini_client()`, `call_gemini()`, and `count_tokens()`.
+- **Package Exports:** Updated [__init__.py](file:///c:/git/KeLegislate/backend/app/agents/__init__.py) to export client functions and models.
+- **Unit & Integration Tests:** Created [test_gemini_client.py](file:///c:/git/KeLegislate/backend/tests/test_gemini_client.py) covering mock outputs, Pydantic structured schemas, transient error backoff retries, token metric parsing, and token counting.
+
+#### Key Technical Details
+- **SDK Standard:** Built on top of the modern `google-genai` SDK (`genai.Client`), defaulting to `gemini-2.5-flash`.
+- **Transient Error Retries:** `call_gemini()` catches `APIError` with status codes 429, 500, 502, 503, 504 or network connection errors, executing exponential backoff retries (up to 3 retries). Permanent 4xx client errors fail immediately.
+- **Token & Latency Metrics:** Automatically extracts `prompt_token_count`, `candidates_token_count`, and `total_token_count` from `response.usage_metadata`, measuring round-trip execution latency in milliseconds via `time.perf_counter()`.
+- **Structured Output Support:** Passes `response_schema` directly to `types.GenerateContentConfig` with `response_mime_type="application/json"`, populating `response.parsed`.
+
+#### Maintenance & Next Developer Guide
+- **Environment Configuration:** Ensure `GEMINI_API_KEY` is set in `.env` (and `GEMINI_PLATFORM` set to `"vertex_ai"` or `"ai_studio"` as appropriate).
+- **Next Step:** Step 2.4 — Summarizer Agent will import `call_gemini` and `GeminiResponse` from `app.agents` to perform structured English bill summarization.
+
+#### Code Review & Refinements
+- **API Key Platform Routing (Issue 7 Fix):** Added `GEMINI_PLATFORM` (default `"vertex_ai"`) setting in `config.py` and updated `get_gemini_client()` in [gemini_client.py](file:///c:/git/KeLegislate/backend/app/agents/gemini_client.py) to pass `vertexai=True` when routing calls via Google Cloud Console Vertex AI infrastructure. Marked Issue 7 as fixed in [step-2.3-gemini-client-setup.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.3-gemini-client-setup.md).
+
+
+
