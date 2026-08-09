@@ -31,7 +31,7 @@
 
 ## 1. Executive Summary
 
-KeLegislate is a civic technology platform that proactively alerts Kenyan informal workers — boda boda riders, market traders, Uber drivers, content creators — about how proposed legislation will impact their livelihood in shillings and cents. The system scrapes legislative bills, uses AI agents to summarize and model financial impact, and delivers personalized alerts via SMS and WhatsApp.
+KeLegislate is a civic technology platform that proactively alerts Kenyan bodaboda riders and transport micro-enterprises about how proposed legislation impacts their livelihood in shillings and cents. The system ingests legislative bills and county regulations, uses AI agents to summarize content, model financial impact, and generate regulatory compliance advice, then delivers personalized alerts via SMS and WhatsApp. The MVP focuses on two bills: the Finance Bill 2024 (motor vehicle value tax) and the Motorcycle Taxi (Boda Boda) Permit Regulations 2025 (regulatory framework for bodaboda riders). The architecture is designed to scale to additional bills, bill types (financial, regulatory, hybrid), and target markets.
 
 This document provides the detailed architectural blueprint for building KeLegislate during the 8-week buildathon. It addresses three key structural challenges — synchronous vs. asynchronous execution paths, idempotency/event deduplication, and agent orchestration — as well as additional architectural concerns including: circuit breaker patterns for external service failures, Cloud Run cold start mitigation, RAG embedding strategy, background task error handling, database migration from the existing Firestore prototype, a phased SMS fan-out cap to control costs during testing, a two-tier PDF extraction strategy (LlamaParse + pdfplumber), authentication for feedback integrity (anti-astroturfing), custom user business profiles with encrypted persistence, and VPS as hosting contingency.
 
@@ -242,7 +242,7 @@ The system has three actor types and twelve use cases organized into three packa
 
 | Actor | Type | Description |
 |---|---|---|
-| **Citizen (Informal Worker)** | Primary | The target user — boda boda rider, market trader, Uber driver, content creator. Interacts via the Next.js PWA and receives SMS/WhatsApp alerts. May or may not have a user account |
+| **Citizen (BodaBoda Rider / Transport Micro-Enterprise)** | Primary | The target user — bodaboda rider, transport operator, or fleet owner. Interacts via the Next.js PWA and receives SMS/WhatsApp alerts. May or may not have a user account |
 | **System (Automated)** | System | Represents the automated backend processes — scraper, AI pipeline, notification service. Acts without human intervention |
 | **Administrator** | Secondary | A team member who monitors system health, reviews DLQ errors, and manages the scraper configuration. During the buildathon, this is the development team itself |
 
@@ -303,6 +303,7 @@ The database schema consists of 9 tables in Supabase PostgreSQL, organized into 
 | `ai_summary_en` | TEXT | NULLABLE | AI-generated English summary with source citations |
 | `ai_summary_sw` | TEXT | NULLABLE | AI-generated Swahili translation of the summary |
 | `ai_status` | VARCHAR(20) | NOT NULL, DEFAULT 'ingested' | Processing status: `ingested` → `extracted` → `summarized` → `verified` → `translated` → `failed` |
+| `bill_type` | VARCHAR(20) | NOT NULL, DEFAULT 'financial' | Bill classification: `financial` (e.g. Finance Bill 2024), `regulatory` (e.g. BodaBoda regulations 2025), or `hybrid` |
 | `ai_error` | TEXT | NULLABLE | Error message if AI processing failed |
 | `verification_score` | DECIMAL(3,2) | NULLABLE | 0.00 – 1.00 confidence score from Verification Agent |
 | `regex_extractions` | JSONB | NULLABLE | JSON array of deterministically extracted values (percentages, monetary amounts, with context) |
@@ -476,7 +477,7 @@ The Level 0 DFD shows KeLegislate as a single process interacting with four exte
 
 **External Entities**:
 1. **Kenyan Parliament** (data source) — provides raw bill PDFs via the parliament.go.ke website
-2. **Citizen / Informal Worker** (primary user) — receives bill summaries, financial impact analyses, and push alerts; provides feedback and subscription preferences
+2. **Citizen / BodaBoda Rider / Transport Micro-Enterprise** (primary user) — receives bill summaries, financial impact analyses, regulatory compliance advice, and push alerts; provides feedback and subscription preferences
 3. **Africa's Talking** (notification provider) — receives formatted alert messages and delivers them as SMS or WhatsApp messages to citizens' phones
 4. **Google Gemini API** (AI service) — receives bill text, prompts, and function call definitions; returns AI-generated summaries, translations, financial reasoning, and verification results
 

@@ -88,8 +88,33 @@
 - **Context Boundaries:** We extract ±200 characters of surrounding context around matches. The boundary computation uses standard bounds clamping (`max(0, start - 200)` and `min(len(text), end + 200)`) to avoid slice indices going out of bounds.
 - **Regex Boundary Fix:** Used word boundary `\b` carefully inside regex groupings rather than as a global suffix. For example, `%` is a non-word character and will not match a trailing `\b`, so boundary markers are placed selectively on word characters (e.g. `percent\b` or `cent\b`).
 
+#### Redesign: Bodaboda-First Market Pivot & Compliance Scope
+Following step 2.2, a pivot in target market and product scope was introduced:
+- **Target Market Focus:** Transport sector micro-enterprises, specifically bodaboda riders (dropping the wider informal workers profile for initial testing but maintaining architecture scalability).
+- **Product Scope Expansion:** Product now provides both financial implication modeling and regulatory compliance advice.
+- **2-Bill MVP Focus:** The conceptual test bill was replaced with two real documents:
+  1. The Finance Bill 2024 ([PDF](https://www.parliament.go.ke/sites/default/files/2024-05/Finance%20Bill%2C%202024.pdf)) - Financial bill.
+  2. Nairobi Motorcycle Taxi (Boda Boda) Permit Regulations 2025 ([PDF](https://nairobiassembly.go.ke/ncca/wp-content/uploads/paperlaid/2026/THE-NAIROBI-CITY-COUNTY-TRANSPORT-ACT-2020-MOTORCYCLE-TAXI-BODABODA-PERMIT-REGULATIONS-2025.pdf)) - Regulatory bill.
+
+#### What Was Done (Redesign Phase R)
+- **Database Schema Migration:** Created [20260807000000_add_bill_type.sql](file:///c:/git/KeLegislate/supabase/migrations/20260807000000_add_bill_type.sql) to add a `bill_type` column (`financial`, `regulatory`, `hybrid`) to the `bills` table.
+- **Pydantic Schemas Update:** Added `bill_type` to bill brief and detail models. Introduced `ComplianceItem` and `PenaltyRisk` models. Updated `ImpactResponse` to return unified results (financial tables, compliance checklists, penalty risks, and compliance costs) in [schemas.py](file:///c:/git/KeLegislate/backend/app/models/schemas.py).
+- **Hustle Profiles:** Added `compliance_baseline` mapping typical permit, training, and safety status to the BodaBoda rider profile in [hustle_profiles.py](file:///c:/git/KeLegislate/backend/app/models/hustle_profiles.py).
+- **Seed Script Update:** Rewrote [seed_bill.py](file:///c:/git/KeLegislate/backend/scripts/seed_bill.py) to download, parse, and ingest the two real bills with their respective `bill_type` attributes.
+- **Product Identity updates:** Aligned descriptions and copy in [main.py](file:///c:/git/KeLegislate/backend/app/main.py), [page.js](file:///c:/git/KeLegislate/frontend/src/app/page.js), [README.md](file:///c:/git/KeLegislate/README.md), and [architectural_design.md](file:///c:/git/KeLegislate/docs/architectural_design.md).
+
 #### Maintenance & Next Developer Guide
-- **Current Database Status:** The bill table's RLS policy is bypassed by using `supabase_admin` in backend/scripts. Do not import `supabase` (the anon client) in administrative scripts, as database calls will fail due to lack of write privileges under RLS.
-- **Pipeline Continuation:**
-  - The seeded test bill has ID `1d1ad81b-650e-49e2-af45-b07040ec8acd` and state `extracted`.
-  - The next step (**Step 2.3 — Gemini Client Setup**) should configure the generative AI SDK and initialize a wrapper client for calling Gemini models to consume the `extracted_text` and `regex_extractions`.
+- **Pending Database Actions:** Apply the SQL migration in the Supabase SQL editor:
+  ```sql
+  ALTER TABLE bills ADD COLUMN IF NOT EXISTS bill_type VARCHAR(20) NOT NULL DEFAULT 'financial';
+  ALTER TABLE bills ADD CONSTRAINT chk_bill_type CHECK (bill_type IN ('financial', 'regulatory', 'hybrid'));
+  ```
+- **Re-seeding & Re-extraction:** Once migration is active, run the seeding and extraction scripts sequentially:
+  ```bash
+  python backend/scripts/seed_bill.py
+  python backend/scripts/run_regex_extraction.py
+  ```
+- **Pipeline Resumption:**
+  - Resume the implementation plan at **Step 2.3 — Gemini Client Setup**.
+  - Subsequent steps (2.4 Summarizer, 2.6 Verifier, 2.8 Impact Agent, 2.9 Orchestrator, 2.10 Endpoints) must reference the redesign specifications ([redesign.md](file:///C:/Users/Steve%20Wanangwe/.gemini/antigravity-ide/brain/b7d586e9-6b00-458f-8ef0-a62a9ac3604e/redesign.md)) to support dual financial/regulatory routing.
+

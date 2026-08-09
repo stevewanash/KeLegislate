@@ -14,22 +14,22 @@
 ## Problem & User
 
 ### **Problem Statement**
-> Informal workers in Kenya including boda boda riders, market traders, and Uber drivers in areas like Kibera, home to one of Nairobi's largest concentrations of boda boda riders and casual laborers; Gikomba Market, East Africa's largest open-air trading hub; and semi-urban areas like Kitengela, where small-scale traders operate with even less access to formal information channels, face routine financial blindsiding from bills that pass without their knowledge or meaningful input, evidenced by the Finance Bill 2024's 5% withholding tax on digital content income, which triggered social media outrage from content creators only after the public participation window had closed (Afrobarometer, 2026). This problem is primarily caused by the absence of a mobile-native tool that proactively alerts informal workers, in plain language, of the financial implications new bills will have on their business, supported by Open Institute Africa's 2025 finding that parliamentary notifications reach less than 200,000 Kenyans through newspaper advertisements, while over 80% of the workforce operates informally, in local languages, on mobile phones, with no habit of reading legislative PDFs. Despite Mzalendo Trust's Dokeza platform offering bill annotation and summaries, its pull model requires users to actively seek information, provides no push notifications or local-language translation, and its user base remains concentrated in major urban centres, leaving workers in rural areas like Shariani, Kilifi, almost entirely excluded. A mobile-native tool that proactively alerts informal workers of relevant bills and models their shilling-and-cents financial impact could enable structured civic input during open participation windows and improve regulatory compliance for businesses, while ensuring no business revenue data is stored to protect users from inadvertent KRA exposure.
+> Bodaboda riders and transport micro-enterprises in Kenya face routine financial blindsiding from national tax bills and county regulations that pass without their knowledge or meaningful input. The Finance Bill 2024 introduced a motor vehicle value tax affecting motorists, while the Motorcycle Taxi (Boda Boda) Permit Regulations 2025 introduced new permit requirements, safety mandates, and operating zone restrictions — yet most riders only learn of these when enforcement begins. This problem is primarily caused by the absence of a mobile-native tool that proactively alerts transport workers, in plain language, of both the financial implications and regulatory compliance requirements of new legislation. A tool that delivers financial impact analysis and compliance checklists in shillings and cents could enable structured civic input during open participation windows and improve regulatory compliance, while ensuring no business revenue data is stored to protect users from inadvertent KRA exposure.
 
 ### Target User
 
 | Dimension | Detail |
 |---|---|
-| **Primary user** | An informal worker such as boda boda rider or Uber driver in Nairobi who relies on daily cash income and has no fixed accountant or legal advisor |
-| **Tech comfort** | Comfortable with Web-App and SMS,; not comfortable navigating government websites or PDF documents |
+| **Primary user** | A bodaboda rider or transport micro-enterprise operator in Nairobi who relies on daily cash income and has no fixed accountant or legal advisor |
+| **Tech comfort** | Comfortable with Web-App and SMS; not comfortable navigating government websites or PDF documents |
 | **Language** | Swahili, English |
-| **Current workflow** | Hears about new taxes only when they hit for example, a boda boda rider at insurance renewal hearing about the 2.5% motor vehicle circulation tax, with no advance warning or way to understand the shilling impact beforehand |
+| **Current workflow** | Hears about new taxes and regulations only when they hit — e.g., learning about new permit requirements at a police checkpoint, or discovering the motor vehicle value tax at insurance renewal, with no advance warning or compliance guidance |
 
 ### The Specific Gap
 
 1. **What's already there:** Mzalendo Trust's Dokeza platform offers bill annotation and summaries of Kenyan legislation.
 2. **Why it falls short:** Dokeza is a *pull* model, it requires users to actively seek it out, offers no push notifications, no local-language translation, and its user base remains concentrated in major urban centres, leaving rural and semi-literate informal workers almost entirely excluded.
-3. **The gap we fill:** A mobile-native tool that *proactively* alerts informal workers, via Web App and SMS, in English and Swahili translation, of exactly how a new bill will hit their pocket in shillings hence giving financial impact, before the public participation window closes.
+3. **The gap we fill:** A mobile-native tool that *proactively* alerts bodaboda riders and transport operators, via Web App and SMS, in English and Swahili, of exactly how a new bill will hit their pocket in shillings (financial impact) and what regulatory steps they need to take (compliance advice), before enforcement begins.
 
 ### Why It Matters
 

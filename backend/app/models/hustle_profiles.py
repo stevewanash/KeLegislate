@@ -5,10 +5,16 @@ The user selects an industry, then picks the tier closest to their business.
 
 IMPORTANT: The system never asks for actual revenue. These are illustrative
 baselines that Gemini uses for relative impact calculations.
+
+MVP FOCUS: For the initial product, only the "Transport & Logistics" industry
+is actively used, with BodaBoda Rider as the primary tier. All other industries
+are retained in the taxonomy for future scalability but are not yet populated
+with tiers.
 """
 
 # Canonical industry taxonomy — used by both the LLM auto-tagger and the UI.
 # The LLM prompt instructs Gemini to pick ONLY from this list (W7).
+# MVP: Only "Transport & Logistics" has active tier profiles.
 INDUSTRIES = [
     "Transport & Logistics",
     "Digital & Content Creation",
@@ -39,6 +45,19 @@ HUSTLE_PROFILES = {
                     "NTSA compliance fees"
                 ],
                 "registered_business": False,
+            },
+            # Compliance profile for regulatory bill analysis.
+            # Captures the typical baseline regulatory status of a bodaboda rider.
+            # Used by the Compliance Advisor Agent to determine which requirements
+            # are already met vs. which need action.
+            "compliance_baseline": {
+                "has_operating_permit": False,    # Most riders don't have county permits yet
+                "has_valid_insurance": True,      # Third-party insurance is common
+                "has_safety_training": False,     # New requirement under 2025 regulations
+                "has_reflective_vest": False,     # New safety requirement
+                "has_helmet_passenger": False,    # Passenger helmet often missing
+                "has_ntsa_inspection": True,      # Most have basic NTSA compliance
+                "operating_zone": "unrestricted", # Will change under county regulations
             }
         },
         {
@@ -60,6 +79,15 @@ HUSTLE_PROFILES = {
                     "Car wash & detailing"
                 ],
                 "registered_business": False,
+            },
+            "compliance_baseline": {
+                "has_operating_permit": False,
+                "has_valid_insurance": True,
+                "has_safety_training": False,
+                "has_reflective_vest": False,
+                "has_helmet_passenger": False,
+                "has_ntsa_inspection": True,
+                "operating_zone": "unrestricted",
             }
         },
         {
@@ -82,6 +110,15 @@ HUSTLE_PROFILES = {
                     "Tracking/fleet management software"
                 ],
                 "registered_business": True,
+            },
+            "compliance_baseline": {
+                "has_operating_permit": True,
+                "has_valid_insurance": True,
+                "has_safety_training": False,
+                "has_reflective_vest": False,
+                "has_helmet_passenger": False,
+                "has_ntsa_inspection": True,
+                "operating_zone": "unrestricted",
             }
         }
     ],

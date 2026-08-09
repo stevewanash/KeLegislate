@@ -238,14 +238,13 @@ Some prototype code can be directly ported to the new structure:
 Rather than building the full scraper automation first, simulate bill ingestion:
 
 - Write a seed script (`backend/scripts/seed_bill.py`) that:
-  1. Takes the Motor Vehicle Circulation Tax Bill PDF URL (already known from the prototype).
-  2. Downloads the PDF.
-  3. Extracts text using **LlamaParse (Agentic Mode)** for the initial bill corpus. This is a one-time cost (~$40-60 for ~4,000 pages across ~25 bills). For this step, use the LlamaParse API directly.
-  4. Falls back to the ported `extractor.py` (pdfplumber + OCR fallback) if LlamaParse is unavailable.
-  5. Inserts a record into the `bills` table with `ai_status = 'ingested'`, `url_hash`, `title`, `source_url`, and `extracted_text`.
-  6. Optionally stores the PDF in Supabase Storage.
-- Run the seed script. Verify the bill record exists in Supabase with extracted text.
-- This gives all subsequent steps a real bill to work with.
+  1. Takes the Finance Bill 2024 PDF URL and Nairobi Motorcycle Taxi (Boda Boda) Permit Regulations 2025 PDF URL.
+  2. Downloads the PDFs.
+  3. Extracts text using **LlamaParse (Agentic Mode)** or falls back to the ported `extractor.py` (pdfplumber + OCR fallback).
+  4. Inserts records into the `bills` table with `ai_status = 'ingested'`, `url_hash`, `title`, `source_url`, `bill_type` ('financial' and 'regulatory' respectively), and `extracted_text`.
+  5. Optionally stores the PDFs in Supabase Storage.
+- Run the seed script. Verify both bill records exist in Supabase with extracted text.
+- This gives all subsequent steps real bills to work with.
 
 > [!NOTE]
 > LlamaParse is used here for the initial bill corpus only. The automated pipeline (Phase 5) uses pdfplumber with a quality-gate fallback to LlamaParse for poor extractions.

@@ -1,9 +1,45 @@
-# .gitignore
+# ============================================
+# Python (all subprojects)
+# ============================================
 .venv/
 venv/
 env/
 .env
-.streamlit/secrets.toml
 __pycache__/
 *.pyc
 **/secrets.toml
+**/.pytest_cache/
+
+# ============================================
+# Streamlit Prototype
+# ============================================
+.streamlit/secrets.toml
+streamlit_prototype/
+
+# ============================================
+# Next.js Frontend
+# ============================================
+frontend/node_modules/
+frontend/.next/
+frontend/next-env.d.ts
+frontend/.env.local
+
+# ============================================
+# Project Planning & Review Artifacts
+# ============================================
+code_review.md
+sprint.md
+docs/implementation_log.md
+docs/code_reviews/
+
+# ============================================
+# VS Code (keep workspace settings, ignore user prefs)
+# ============================================
+.vscode/
+.vscode/settings.json
+
+# ============================================
+# OS junk
+# ============================================
+Thumbs.db
+.DS_Store

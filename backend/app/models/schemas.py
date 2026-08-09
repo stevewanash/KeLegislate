@@ -9,6 +9,7 @@ class BillBrief(BaseModel):
     id: str
     title: str
     tags: List[str]
+    bill_type: str  # 'financial', 'regulatory', 'hybrid'
     created_at: datetime
     ai_status: str
 
@@ -21,12 +22,30 @@ class BillListResponse(BaseModel):
 class BillDetailResponse(BaseModel):
     id: str
     title: str
+    bill_type: str  # 'financial', 'regulatory', 'hybrid'
     ai_summary_en: Optional[str] = None
     ai_summary_sw: Optional[str] = None
     tags: List[str]
     regex_extractions: Optional[List[Dict[str, Any]]] = None
     source_url: str
     created_at: datetime
+
+# ==========================================
+# COMPLIANCE SCHEMAS
+# ==========================================
+class ComplianceItem(BaseModel):
+    """A single regulatory compliance requirement extracted from a bill."""
+    requirement: str
+    status: str  # 'required', 'recommended', 'optional'
+    deadline: Optional[str] = None
+    estimated_cost_kes: Optional[float] = None
+    penalty_for_non_compliance: Optional[str] = None
+
+class PenaltyRisk(BaseModel):
+    """A penalty risk associated with non-compliance of a regulatory bill."""
+    violation: str
+    penalty: str
+    severity: str  # 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
 
 # ==========================================
 # FINANCIAL IMPACT SCHEMAS
@@ -38,9 +57,24 @@ class ImpactRequest(BaseModel):
     use_custom_profile: bool = False
 
 class ImpactResponse(BaseModel):
-    impact_table: List[Dict[str, Any]]
-    net_monthly_impact: float
-    compliance_checklist: List[str]
+    """
+    Unified response for both financial impact and regulatory compliance analysis.
+    Fields are populated based on the bill's `bill_type`:
+    - financial: impact_table + net_monthly_impact populated
+    - regulatory: compliance_checklist + penalty_risks populated
+    - hybrid: all fields populated
+    """
+    # Financial impact (present for financial/hybrid bills)
+    impact_table: Optional[List[Dict[str, Any]]] = None
+    net_monthly_impact: Optional[float] = None
+
+    # Compliance impact (present for regulatory/hybrid bills)
+    compliance_checklist: List[ComplianceItem] = []
+    compliance_cost_total: Optional[float] = None
+    penalty_risks: Optional[List[PenaltyRisk]] = None
+
+    # Common fields
+    bill_type: str  # 'financial', 'regulatory', 'hybrid'
     risk_level: str  # 'LOW', 'MEDIUM', 'HIGH'
     verified: bool
     disclaimer: Optional[str] = None
