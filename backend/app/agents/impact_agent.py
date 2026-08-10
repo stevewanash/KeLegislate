@@ -9,7 +9,8 @@ import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
-from app.agents.gemini_client import call_gemini
+from app.agents.llm_client import call_llm as call_gemini
+call_llm = call_gemini
 from app.agents.calculator import CALCULATOR_TOOL_SPEC, execute_calculator_tool, evaluate_expression
 from app.models.schemas import ImpactResponse, ImpactItem, ComplianceItem, PenaltyRisk
 from app.database import supabase_admin
@@ -115,7 +116,7 @@ Perform a thorough financial impact and compliance analysis tailored to this pro
             tools=[CALCULATOR_TOOL_SPEC],
         )
     except Exception as err:
-        logger.error(f"Gemini API call failed in impact agent: {err}")
+        logger.error(f"LLM API call failed in impact agent: {err}")
         return _fallback_impact_response(bill_type, metrics)
 
     if response.parsed and isinstance(response.parsed, ImpactResponse):

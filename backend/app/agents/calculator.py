@@ -139,6 +139,30 @@ CALCULATOR_TOOL_SPEC = types.FunctionDeclaration(
     )
 )
 
+# OpenAI-compatible function tool schema for DeepSeek / OpenAI SDK
+CALCULATOR_TOOL_SPEC_OPENAI = {
+    "type": "function",
+    "function": {
+        "name": "calculate",
+        "description": (
+            "Evaluates a mathematical expression deterministically. "
+            "Use this for ALL arithmetic operations (addition, subtraction, multiplication, division, percentages, power, etc.). "
+            "Supports operators +, -, *, /, %, **, and parentheses. Numbers can include decimals."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "type": "string",
+                    "description": "Mathematical expression to evaluate, e.g. '150000 * 0.025' or '(3500 - 500) * 0.16'."
+                }
+            },
+            "required": ["expression"]
+        }
+    }
+}
+
+
 
 def execute_calculator_tool(function_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
     """

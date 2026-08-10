@@ -91,7 +91,13 @@ def call_gemini(
     if response_mime_type is not None:
         config_kwargs["response_mime_type"] = response_mime_type
     if tools is not None:
-        config_kwargs["tools"] = tools
+        wrapped_tools = []
+        for tool in tools:
+            if isinstance(tool, types.FunctionDeclaration):
+                wrapped_tools.append(types.Tool(function_declarations=[tool]))
+            else:
+                wrapped_tools.append(tool)
+        config_kwargs["tools"] = wrapped_tools
 
     config = types.GenerateContentConfig(**config_kwargs)
 

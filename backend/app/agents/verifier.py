@@ -3,7 +3,8 @@ import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
-from app.agents.gemini_client import call_gemini
+from app.agents.llm_client import call_llm as call_gemini
+call_llm = call_gemini
 from app.agents.summarizer import summarize_bill_text
 from app.database import supabase_admin
 

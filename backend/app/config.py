@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
     GEMINI_PLATFORM: str = "vertex_ai"
     
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    AI_PROVIDER: str = "gemini"
+    
     AFRICAS_TALKING_USERNAME: str = "sandbox"
     AFRICAS_TALKING_API_KEY: str
     AFRICAS_TALKING_SENDER_ID: str | None = None
@@ -43,6 +47,9 @@ except Exception as e:
         SUPABASE_DB_URL = os.environ.get("SUPABASE_DB_URL", "postgresql://mock@localhost:5432/mock")
         GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "mock-gemini-key")
         GEMINI_PLATFORM = os.environ.get("GEMINI_PLATFORM", "vertex_ai")
+        DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+        DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+        AI_PROVIDER = os.environ.get("AI_PROVIDER", "gemini")
         AFRICAS_TALKING_USERNAME = os.environ.get("AFRICAS_TALKING_USERNAME", "sandbox")
         AFRICAS_TALKING_API_KEY = os.environ.get("AFRICAS_TALKING_API_KEY", "mock-at-key")
         AFRICAS_TALKING_SENDER_ID = os.environ.get("AFRICAS_TALKING_SENDER_ID", None)

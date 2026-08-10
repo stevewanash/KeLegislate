@@ -355,16 +355,16 @@ Rather than building the full scraper automation first, simulate bill ingestion:
 
 ### Phase 2 Exit Criteria
 
-- [ ] Seed script inserts a real bill into Supabase with extracted text.
-- [ ] Regex extraction finds values in the bill text and stores them as JSONB.
-- [ ] Summarization Agent produces an English summary with citations and industry tags.
-- [ ] Translation Agent produces a Swahili translation.
-- [ ] Verification Agent performs basic numeric claim checking (without RAG).
-- [ ] Calculator tool is deterministic and tested.
-- [ ] Financial Impact Agent produces KES-denominated analysis using the calculator.
-- [ ] DAG orchestrator runs the full pipeline end-to-end.
-- [ ] `GET /api/bills`, `GET /api/bills/{id}`, and `POST /api/impact` return correct data.
-- [ ] Merge `phase-2/core-pipeline` → `develop`.
+- [x] Seed script inserts a real bill into Supabase with extracted text.
+- [x] Regex extraction finds values in the bill text and stores them as JSONB.
+- [x] Summarization Agent produces an English summary with citations and industry tags.
+- [x] Translation Agent produces a Swahili translation.
+- [x] Verification Agent performs basic numeric claim checking (without RAG).
+- [x] Calculator tool is deterministic and tested.
+- [x] Financial Impact Agent produces KES-denominated analysis using the calculator.
+- [x] DAG orchestrator runs the full pipeline end-to-end.
+- [x] `GET /api/bills`, `GET /api/bills/{id}`, and `POST /api/impact` return correct data.
+- [ ] Merge `phase-2/core-pipeline` → `develop`. (need to fix gemini api client first, currently using deepseek fallback)
 
 ---
 

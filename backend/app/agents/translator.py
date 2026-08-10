@@ -3,7 +3,8 @@ import logging
 import re
 from pydantic import BaseModel, Field
 
-from app.agents.gemini_client import call_gemini
+from app.agents.llm_client import call_llm as call_gemini
+call_llm = call_gemini
 from app.database import supabase_admin
 
 logger = logging.getLogger(__name__)
