@@ -12,7 +12,12 @@ are retained in the taxonomy for future scalability but are not yet populated
 with tiers.
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Canonical industry taxonomy — used by both the LLM auto-tagger and the UI.
+
 # The LLM prompt instructs Gemini to pick ONLY from this list (W7).
 # MVP: Only "Transport & Logistics" has active tier profiles.
 INDUSTRIES = [
@@ -123,3 +128,32 @@ HUSTLE_PROFILES = {
         }
     ],
 }
+
+
+def get_hustle_profile(industry: str, tier: str) -> dict:
+    """
+    Look up a predefined hustle profile by industry and tier string.
+    Supports exact and partial tier string matching.
+    Falls back to default profile if industry or tier is not found.
+    """
+    profiles_for_ind = HUSTLE_PROFILES.get(industry)
+    if not profiles_for_ind:
+        # Fall back to Transport & Logistics default if industry not in HUSTLE_PROFILES
+        profiles_for_ind = HUSTLE_PROFILES.get("Transport & Logistics", [])
+
+    if not profiles_for_ind:
+        return {}
+
+    tier_clean = tier.strip().lower()
+    for p in profiles_for_ind:
+        p_tier_clean = p["tier"].strip().lower()
+        if p_tier_clean == tier_clean or tier_clean in p_tier_clean or p_tier_clean in tier_clean:
+            return p
+
+    # If no match found, return first profile in industry
+    logger.warning(
+        f"No matching tier profile found for tier '{tier}' in industry '{industry}'; "
+        f"falling back to default profile '{profiles_for_ind[0]['tier']}'."
+    )
+    return profiles_for_ind[0]
+

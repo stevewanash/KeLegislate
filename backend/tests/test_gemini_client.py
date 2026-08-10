@@ -30,6 +30,12 @@ def test_gemini_response_schema():
     assert resp.total_tokens == 30
     assert resp.latency_ms == 150.5
     assert resp.model_name == "gemini-2.5-flash"
+    assert resp.structured_output_requested is False
+
+def test_get_gemini_client_missing_key_raises_value_error():
+    with patch.object(settings, "GEMINI_API_KEY", ""):
+        with pytest.raises(ValueError, match="GEMINI_API_KEY is not set"):
+            get_gemini_client()
 
 def test_call_gemini_success_mock():
     mock_client = MagicMock()
@@ -60,6 +66,7 @@ def test_call_gemini_success_mock():
     assert result.total_tokens == 150
     assert result.latency_ms > 0
     assert result.model_name == "gemini-2.5-flash"
+    assert result.structured_output_requested is False
 
     mock_client.models.generate_content.assert_called_once()
     _, kwargs = mock_client.models.generate_content.call_args
@@ -88,6 +95,7 @@ def test_call_gemini_structured_output_mock():
 
     assert result.parsed.summary == "Test"
     assert result.parsed.key_points == ["a", "b"]
+    assert result.structured_output_requested is True
     
     _, kwargs = mock_client.models.generate_content.call_args
     assert kwargs["config"].response_schema == SampleSchema
@@ -114,6 +122,36 @@ def test_call_gemini_transient_retry_success():
     assert result.text == "Retry success"
     assert mock_client.models.generate_content.call_count == 2
 
+def test_call_gemini_network_exception_retry():
+    mock_client = MagicMock()
+
+    mock_usage = MagicMock(prompt_token_count=5, candidates_token_count=5, total_token_count=10)
+    success_response = MagicMock(text="Network retry success", parsed=None, usage_metadata=mock_usage)
+
+    network_error = TimeoutError("Request timed out after 60s")
+    mock_client.models.generate_content.side_effect = [network_error, success_response]
+
+    with patch("time.sleep", return_value=None):
+        result = call_gemini(
+            prompt="Network prompt",
+            client=mock_client,
+            max_retries=2,
+            backoff_factor=0.01,
+        )
+
+    assert result.text == "Network retry success"
+    assert mock_client.models.generate_content.call_count == 2
+
+def test_call_gemini_none_usage_metadata():
+    mock_client = MagicMock()
+    mock_response = MagicMock(text="No usage info", parsed=None, usage_metadata=None)
+    mock_client.models.generate_content.return_value = mock_response
+
+    result = call_gemini(prompt="No metadata test", client=mock_client)
+    assert result.prompt_tokens == 0
+    assert result.completion_tokens == 0
+    assert result.total_tokens == 0
+
 def test_call_gemini_permanent_error_raises():
     mock_client = MagicMock()
     permanent_error = ClientError(400, {"message": "Invalid request"})
@@ -138,6 +176,17 @@ def test_count_tokens_mock():
     mock_client.models.count_tokens.assert_called_once_with(
         model="gemini-2.5-flash", contents="Short sentence"
     )
+
+def test_count_tokens_transient_retry():
+    mock_client = MagicMock()
+    transient_error = ClientError(429, {"message": "Rate limit"})
+    mock_result = MagicMock(total_tokens=15)
+    mock_client.models.count_tokens.side_effect = [transient_error, mock_result]
+
+    with patch("time.sleep", return_value=None):
+        count = count_tokens("Retry sentence", client=mock_client, max_retries=2)
+    assert count == 15
+    assert mock_client.models.count_tokens.call_count == 2
 
 @pytest.mark.skipif(
     not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.startswith("mock"),

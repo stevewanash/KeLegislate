@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import bills, impact, feedback, subscribe, profile, dashboard, webhooks
+from app.api import bills, impact, feedback, subscribe, profile, dashboard, webhooks, admin
 
 app = FastAPI(
     title="KeLegislate API",
@@ -30,6 +30,7 @@ app.include_router(subscribe.router, prefix="/api")
 app.include_router(profile.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(webhooks.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 @app.get("/health")
 async def health_check():

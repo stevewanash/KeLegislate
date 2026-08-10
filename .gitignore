@@ -9,6 +9,7 @@ __pycache__/
 *.pyc
 **/secrets.toml
 **/.pytest_cache/
+/*.json
 
 # ============================================
 # Streamlit Prototype

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     API_SECRET_TOKEN: str
     
     LLAMAPARSE_API_KEY: str | None = None
+    TESTING: bool = False
 
     # Support reading from .env file or env variables directly
     model_config = SettingsConfigDict(
@@ -50,5 +51,7 @@ except Exception as e:
         ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "mock-encryption-key-32-bytes-long-!")
         API_SECRET_TOKEN = os.environ.get("API_SECRET_TOKEN", "mock-api-token")
         LLAMAPARSE_API_KEY = os.environ.get("LLAMAPARSE_API_KEY", None)
+        TESTING = os.environ.get("TESTING", "true").lower() == "true"
     
     settings = MockSettings()
+

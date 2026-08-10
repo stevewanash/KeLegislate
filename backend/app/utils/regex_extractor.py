@@ -260,3 +260,7 @@ def extract_bill_data(text: str) -> List[Dict[str, Any]]:
     # Sort extractions by their starting index in the document
     extractions.sort(key=lambda x: x["start"])
     return extractions
+
+# Alias for consistent function naming across pipeline agents
+extract_financial_values = extract_bill_data
+

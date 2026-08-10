@@ -12,22 +12,31 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
+TRANSIENT_NETWORK_KEYWORDS = ("connection", "timeout", "timed out", "reset", "dns", "unreachable")
+
 class GeminiResponse(BaseModel):
     """Container for Gemini API response data and performance metrics."""
     text: str = ""
     parsed: Optional[Any] = None
+    structured_output_requested: bool = False
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
     latency_ms: float = 0.0
     model_name: str = ""
 
-def get_gemini_client() -> genai.Client:
-    """Initialize and return a google-genai Client instance using configured API key and platform routing."""
+def get_gemini_client(timeout: int = 60000) -> genai.Client:
+    """
+    Initialize and return a google-genai Client instance using configured API key,
+    platform routing, and explicit request timeout (default: 60000ms / 60s).
+    """
     api_key = settings.GEMINI_API_KEY
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set in settings.")
-    kwargs: dict[str, Any] = {"api_key": api_key}
+    kwargs: dict[str, Any] = {
+        "api_key": api_key,
+        "http_options": {"timeout": timeout},
+    }
     if getattr(settings, "GEMINI_PLATFORM", "vertex_ai") == "vertex_ai":
         kwargs["vertexai"] = True
     return genai.Client(**kwargs)
@@ -40,6 +49,7 @@ def call_gemini(
     max_output_tokens: Optional[int] = None,
     response_schema: Optional[Any] = None,
     response_mime_type: Optional[str] = None,
+    tools: Optional[list[Any]] = None,
     client: Optional[genai.Client] = None,
     max_retries: int = 3,
     backoff_factor: float = 1.0,
@@ -55,8 +65,9 @@ def call_gemini(
         max_output_tokens: Maximum tokens in response.
         response_schema: Target Pydantic model or schema for structured JSON output.
         response_mime_type: MIME type of output (e.g. "application/json").
+        tools: Optional list of tools (e.g. FunctionDeclaration or tool definitions).
         client: Optional explicit genai.Client instance.
-        max_retries: Maximum number of retry attempts for transient errors.
+        max_retries: Maximum number of retry attempts after initial call (total calls = 1 initial + max_retries).
         backoff_factor: Multiplier for exponential backoff sleep.
         
     Returns:
@@ -79,6 +90,8 @@ def call_gemini(
             config_kwargs["response_mime_type"] = "application/json"
     if response_mime_type is not None:
         config_kwargs["response_mime_type"] = response_mime_type
+    if tools is not None:
+        config_kwargs["tools"] = tools
 
     config = types.GenerateContentConfig(**config_kwargs)
 
@@ -109,6 +122,7 @@ def call_gemini(
             return GeminiResponse(
                 text=text_output,
                 parsed=parsed_output,
+                structured_output_requested=(response_schema is not None),
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
@@ -133,10 +147,13 @@ def call_gemini(
                 raise e
         except Exception as e:
             last_exception = e
-            if attempt < max_retries and "connection" in str(e).lower():
+            is_network = isinstance(e, (ConnectionError, TimeoutError, OSError)) or any(
+                kw in str(e).lower() for kw in TRANSIENT_NETWORK_KEYWORDS
+            )
+            if attempt < max_retries and is_network:
                 sleep_time = backoff_factor * (2 ** attempt)
                 logger.warning(
-                    f"Gemini API network error: {e}. "
+                    f"Gemini API network error ({type(e).__name__}): {e}. "
                     f"Retrying attempt {attempt + 1}/{max_retries} in {sleep_time:.2f}s..."
                 )
                 time.sleep(sleep_time)
@@ -152,9 +169,31 @@ def count_tokens(
     prompt: str,
     model: str = "gemini-2.5-flash",
     client: Optional[genai.Client] = None,
+    max_retries: int = 3,
+    backoff_factor: float = 1.0,
 ) -> int:
-    """Calculate token count for a given text prompt using the Gemini API."""
+    """Calculate token count for a given text prompt using the Gemini API with transient error retries."""
     if client is None:
         client = get_gemini_client()
-    result = client.models.count_tokens(model=model, contents=prompt)
-    return getattr(result, "total_tokens", 0) or 0
+
+    for attempt in range(max_retries + 1):
+        try:
+            result = client.models.count_tokens(model=model, contents=prompt)
+            return getattr(result, "total_tokens", 0) or 0
+        except APIError as e:
+            status_code = getattr(e, "code", None)
+            is_transient = status_code in (429, 500, 502, 503, 504) or "rate" in str(e).lower()
+            if is_transient and attempt < max_retries:
+                time.sleep(backoff_factor * (2 ** attempt))
+            else:
+                raise e
+        except Exception as e:
+            is_network = isinstance(e, (ConnectionError, TimeoutError, OSError)) or any(
+                kw in str(e).lower() for kw in TRANSIENT_NETWORK_KEYWORDS
+            )
+            if attempt < max_retries and is_network:
+                time.sleep(backoff_factor * (2 ** attempt))
+            else:
+                raise e
+
+    return 0

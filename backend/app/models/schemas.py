@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime
 
 # ==========================================
@@ -9,7 +9,7 @@ class BillBrief(BaseModel):
     id: str
     title: str
     tags: List[str]
-    bill_type: str  # 'financial', 'regulatory', 'hybrid'
+    bill_type: Literal["financial", "regulatory", "hybrid"] = "financial"
     created_at: datetime
     ai_status: str
 
@@ -22,7 +22,7 @@ class BillListResponse(BaseModel):
 class BillDetailResponse(BaseModel):
     id: str
     title: str
-    bill_type: str  # 'financial', 'regulatory', 'hybrid'
+    bill_type: Literal["financial", "regulatory", "hybrid"] = "financial"
     ai_summary_en: Optional[str] = None
     ai_summary_sw: Optional[str] = None
     tags: List[str]
@@ -56,6 +56,15 @@ class ImpactRequest(BaseModel):
     tier: str
     use_custom_profile: bool = False
 
+class ImpactItem(BaseModel):
+    """Structured model for a single financial impact line item."""
+    description: str
+    base_kes: float
+    change_kes: float
+    period: str = "monthly"  # "monthly", "annual", "one-time"
+    section_ref: str
+    math_breakdown: str
+
 class ImpactResponse(BaseModel):
     """
     Unified response for both financial impact and regulatory compliance analysis.
@@ -65,7 +74,7 @@ class ImpactResponse(BaseModel):
     - hybrid: all fields populated
     """
     # Financial impact (present for financial/hybrid bills)
-    impact_table: Optional[List[Dict[str, Any]]] = None
+    impact_table: Optional[List[ImpactItem]] = None
     net_monthly_impact: Optional[float] = None
 
     # Compliance impact (present for regulatory/hybrid bills)
@@ -74,7 +83,7 @@ class ImpactResponse(BaseModel):
     penalty_risks: Optional[List[PenaltyRisk]] = None
 
     # Common fields
-    bill_type: str  # 'financial', 'regulatory', 'hybrid'
+    bill_type: Literal["financial", "regulatory", "hybrid"] = "financial"
     risk_level: str  # 'LOW', 'MEDIUM', 'HIGH'
     verified: bool
     disclaimer: Optional[str] = None

@@ -139,7 +139,240 @@ Following step 2.2, a pivot in target market and product scope was introduced:
 - **Next Step:** Step 2.4 — Summarizer Agent will import `call_gemini` and `GeminiResponse` from `app.agents` to perform structured English bill summarization.
 
 #### Code Review & Refinements
-- **API Key Platform Routing (Issue 7 Fix):** Added `GEMINI_PLATFORM` (default `"vertex_ai"`) setting in `config.py` and updated `get_gemini_client()` in [gemini_client.py](file:///c:/git/KeLegislate/backend/app/agents/gemini_client.py) to pass `vertexai=True` when routing calls via Google Cloud Console Vertex AI infrastructure. Marked Issue 7 as fixed in [step-2.3-gemini-client-setup.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.3-gemini-client-setup.md).
+Address code review recommendations from [step-2.3-gemini-client-setup.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.3-gemini-client-setup.md):
+- **Retry Semantics & Docstrings (Issue 1):** Clarified docstring for `max_retries` in `call_gemini` to specify that `max_retries` represents retries after the initial attempt (total calls = 1 initial + `max_retries`).
+- **Broadened Network Error Detection (Issue 2):** Expanded generic exception handling in `call_gemini` and `count_tokens` to detect `ConnectionError`, `TimeoutError`, `OSError`, and keywords (`"timeout"`, `"timed out"`, `"reset"`, `"dns"`, `"unreachable"`).
+- **Token Counter Retries (Issue 3):** Added exponential backoff retry loop with transient error handling to `count_tokens()`.
+- **SDK Timeout Configuration (Issue 4):** Configured explicit 60-second default request timeout (`http_options={"timeout": 60000}`) in `get_gemini_client()`.
+- **Structured Output Request Flag (Issue 5):** Added `structured_output_requested: bool` field to `GeminiResponse` model to distinguish between unrequested schemas vs parsing failures.
+- **Expanded Test Coverage (Issue 6):** Added unit tests covering missing API key startup guard, network error retries, `None` usage metadata defaults, structured output request flags, and token counter retries in `test_gemini_client.py`.
+- **API Key Platform Routing (Issue 7):** Added `GEMINI_PLATFORM` (default `"vertex_ai"`) setting in `config.py` and updated `get_gemini_client()` in [gemini_client.py](file:///c:/git/KeLegislate/backend/app/agents/gemini_client.py) to pass `vertexai=True` when routing calls via Google Cloud Console.
+
+
+
+### Step 2.4 — Summarization Agent
+
+#### What Was Done
+- **Summarizer Implementation:** Created [summarizer.py](file:///c:/git/KeLegislate/backend/app/agents/summarizer.py) implementing `summarize_bill_text()` and `summarize_bill()`.
+- **Structured Schema:** Defined `BillSummary` Pydantic model enforcing `summary_en`, `implications_citizens`, `implications_business`, `industry_tags`, `source_citations`, `key_financial_changes`, and `key_regulatory_changes`.
+- **Canonical Industry Tag Filtering:** Enforced strict tag filtering so returned industry tags are validated against the canonical `INDUSTRIES` list in `hustle_profiles.py`.
+- **Supabase Integration:** Configured `summarize_bill()` to query the `bills` table, store the generated English summary (`ai_summary_en`), update `ai_status` to `'summarized'`, delete existing tags in `bill_tags`, and insert newly generated canonical tags.
+
+#### Key Technical Details
+- **Gemini Structured Output:** Leverages `call_gemini` with `response_schema=BillSummary` and `response_mime_type="application/json"` using `gemini-2.5-flash`.
+- **Dual Financial/Regulatory Routing:** Formats prompts with clear bill type demarcation (`FINANCIAL`, `REGULATORY`, `HYBRID`) and provides pre-extracted regex context values.
+
+#### Code Review & Refinements
+- **Review:** [step-2.4-summarization-agent.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.4-summarization-agent.md) — ✅ All reported issues resolved:
+  - **Text Truncation Warning:** Added `logger.warning` when extracted text exceeds 15,000 characters.
+  - **PEP 8 Imports:** Moved `import json` to top-level imports in both `summarizer.py` and `verifier.py`.
+  - **Pipeline Idempotency:** Added idempotency check in `summarize_bill(bill_id, force=False)` to skip API calls if already processed (`summarized`, `translated`, `verified`).
+  - **Tag Mutation Transaction Safety:** Wrapped `bill_tags` delete + insert in a `try...except` block with error logging.
+  - **Fallback Tag Warning:** Added log warning when MVP fallback tag `"Transport & Logistics"` is assigned.
+  - **Unit Test Coverage:** Added unit test cases for truncation warning logging and idempotency skipping in [test_agents.py](file:///c:/git/KeLegislate/backend/tests/test_agents.py).
+
+---
+
+### Step 2.5 — Translation Agent
+
+#### What Was Done
+- **Translator Implementation:** Created [translator.py](file:///c:/git/KeLegislate/backend/app/agents/translator.py) implementing `translate_summary_text()` and `translate_bill()`.
+- **Swahili Translation System Prompt:** Formulated `TRANSLATOR_SYSTEM_INSTRUCTION` enforcing strict preservation of legal section citations (e.g. `Section 42(1)`, `Clause 4`), percentages, monetary values (KES/Ksh), dates, and paragraph layout.
+- **Supabase Integration:** Configured `translate_bill()` to read `ai_summary_en`, translate it to Swahili, store `ai_summary_sw`, and set `ai_status` to `'translated'`.
+
+#### Key Technical Details
+- **Fidelity Preservation:** Uses low temperature (`temperature=0.1`) with `gemini-2.5-flash` to maintain strict legal and numerical fidelity across language translations.
+
+#### Code Review & Refinements
+- **Review:** [step-2.5-translation-agent.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.5-translation-agent.md) — ✅ All reported issues resolved:
+  - **Structured JSON Output:** Defined `SwahiliTranslation` Pydantic model (`summary_sw`) and passed `response_schema=SwahiliTranslation` with `response_mime_type="application/json"` to enforce clean output.
+  - **Post-Translation Citation Audit:** Added regex extraction of legal citations (e.g. `Section 12(1)`, `Clause 4`) from the source summary to verify their presence in Swahili text, emitting a `logger.warning` if missing.
+  - **Pipeline Idempotency:** Added idempotency check in `translate_bill(bill_id, force=False)` to skip Gemini API calls when `ai_status == 'translated'`.
+  - **Status Machine Clarity:** Documented state transition behavior in `translate_bill` docstrings (direct transition from `summarized`/`verified` to `translated`).
+  - **Unit Test Coverage:** Added unit test cases for structured output parsing, citation omission warning logging, and idempotency skipping in [test_agents.py](file:///c:/git/KeLegislate/backend/tests/test_agents.py) (11/11 tests passing).
+
+
+---
+
+### Step 2.6 — Verification Agent (Basic — Without RAG)
+
+#### What Was Done
+- **Verifier Implementation:** Created [verifier.py](file:///c:/git/KeLegislate/backend/app/agents/verifier.py) implementing `verify_summary_claims()` and `verify_bill_claims()`.
+- **Verification Audit Schema:** Defined `VerificationResult` Pydantic model (`verified: bool`, `issues: List[str]`, `confidence: float`, `discrepancies: List[Dict[str, Any]]`).
+- **Supabase Integration:** Configured `verify_bill_claims()` to fetch `ai_summary_en` and `regex_extractions`, audit numerical claims, and update `verification_score` in the database.
+
+#### Key Technical Details
+- **Audit Mechanics:** Compares claimed percentage/monetary values against `regex_extractions`. Clamps calculated confidence score between `0.0` and `1.0`.
+
+#### Code Review & Refinements
+- **Review:** [step-2.6-verification-agent.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.6-verification-agent.md) — ✅ All reported issues resolved:
+  - **Max 2 Retries Feedback Loop:** Implemented `max_retries=2` loop in `verify_bill_claims()`. If verification fails, flagged issues are fed back to `summarize_bill_text()` to generate a revised summary before re-auditing.
+  - **Pipeline State Transition:** Updated `verify_bill_claims()` to set `ai_status = 'verified'` upon successful verification (or remain `'summarized'` if retries fail), establishing state machine consistency.
+  - **Typed Discrepancy Schema:** Created `DiscrepancyItem` Pydantic model (`claim`, `claim_value`, `extracted_value`, `section_ref`, `severity`) and updated `VerificationResult.discrepancies` to `List[DiscrepancyItem]`.
+  - **Empty Extraction Warning:** Added `logger.warning` when no `regex_extractions` are provided for audit.
+  - **Model Alignment:** Aligned default model to `"gemini-3.5-flash"` per architectural plan.
+  - **Pipeline Idempotency:** Added idempotency check in `verify_bill_claims(bill_id, force=False)` to skip Gemini API calls if already verified (`ai_status in ('verified', 'translated')`).
+  - **Unit Test Coverage:** Added test cases for `DiscrepancyItem`, empty extractions warning logging, idempotency skipping, and retry feedback loop execution in [test_agents.py](file:///c:/git/KeLegislate/backend/tests/test_agents.py) (14/14 tests passing).
+
+---
+
+### Testing & Deferral Note
+> [!IMPORTANT]
+> **LIVE AI API TESTING DEFERRED**: As requested due to active AI API issues, live end-to-end integration testing against the live Gemini API service was **deferred until the AI API issue is fixed**.
+>
+> **Mocked Unit Test Verification:** Offline unit tests were created and expanded in [test_agents.py](file:///c:/git/KeLegislate/backend/tests/test_agents.py) using `unittest.mock` to mock `call_gemini` and `supabase_admin`. All 14 test cases passed (100% pass rate across schema validation, prompt formatting, tag sanitization, truncation warning logging, Swahili citation audit, verifier retry feedback loop, idempotency skipping, exception handling, and database update calls).
+
+
+---
+
+### Maintenance & Next Developer Guide
+- **Resuming Live Testing:** Once the AI API issue is resolved, live testing can be executed on seeded bills (`Finance Bill 2024` and `Bodaboda Regulations 2025`) using python scripts or interactive triggers.
+
+---
+
+### Step 2.7 — Calculator Tool
+
+#### What Was Done
+- **Calculator Implementation:** Created [calculator.py](file:///c:/git/KeLegislate/backend/app/agents/calculator.py) implementing `evaluate_expression()`, `calculate()`, `CALCULATOR_TOOL_SPEC`, and `execute_calculator_tool()`.
+- **AST Whitelisting Evaluator:** Built `evaluate_expression(expression: str) -> float` using Python's standard `ast` module. The evaluator strictly permits numbers (`ast.Constant`), basic binary operators (`+`, `-`, `*`, `/`, `%`, `**`), unary operators (`+`, `-`), and parenthesized grouping. It rejects identifiers, function calls, attribute access, and injection attempts with `ValueError`.
+- **Gemini Function Calling Declaration:** Defined `CALCULATOR_TOOL_SPEC` (FunctionDeclaration JSON Schema) enabling Gemini 3.5 Flash to invoke the calculator tool for deterministic financial calculations.
+- **Dispatcher Helper:** Added `execute_calculator_tool(function_name, args)` to handle tool call dispatches from Gemini function calling responses.
+- **Exports:** Updated [__init__.py](file:///c:/git/KeLegislate/backend/app/agents/__init__.py) to expose calculator functions and tool spec.
+- **Unit Testing:** Created [test_calculator.py](file:///c:/git/KeLegislate/backend/tests/test_calculator.py) with 10 unit test cases (100% pass rate) covering arithmetic, nested parenthesized math, negative/floating values, thousand-separator comma formatting, zero division, security rejections, helper dictionary responses, and tool dispatching.
+
+#### Key Technical Details
+- **AST Security Whitelisting:** Unlike dangerous `eval()` or fragile custom parsers, `ast.parse(sanitized, mode='eval')` produces an Abstract Syntax Tree. Nodes are walked recursively and checked against explicit whitelist dicts (`ALLOWED_BIN_OPS` and `ALLOWED_UNARY_OPS`). Anything outside the whitelist (e.g. `ast.Call`, `ast.Name`, `ast.Attribute`, `ast.Import`) triggers an explicit `ValueError`.
+- **Thousands Separator Sanitization:** Sanitizes number strings with comma thousand separators (e.g. `1,000,000 / 100` -> `1000000 / 100`) using regex lookbehind/lookahead `(?<=\d),(?=\d)`.
+- **Zero Division Protection:** Explicitly catches division/modulo by zero during AST evaluation and raises `ZeroDivisionError("Division or modulo by zero")`.
+
+#### Maintenance & Next Developer Guide
+- **Integration with Financial Impact Agent:** Step 2.8 — Financial Impact Agent (`impact_agent.py`) imports `CALCULATOR_TOOL_SPEC` and `evaluate_expression` from `app.agents` to allow Gemini 3.5 Flash to execute deterministic KES arithmetic.
+
+---
+
+### Step 2.8 — Financial Impact Agent
+
+#### What Was Done
+- **Agent Implementation:** Implemented [impact_agent.py](file:///c:/git/KeLegislate/backend/app/agents/impact_agent.py) with `compute_financial_impact_analysis()`, `compute_financial_impact()`, and AST math verification helper `_verify_and_recalculate_math()`.
+- **Dual Financial/Regulatory Routing:** Supports `bill_type` routing for `financial`, `regulatory`, and `hybrid` bills.
+  - `financial`: Populates itemized `impact_table` and `net_monthly_impact`.
+  - `regulatory`: Populates `compliance_checklist`, `compliance_cost_total`, and `penalty_risks`.
+  - `hybrid`: Populates both financial impact and regulatory compliance advice.
+- **Calculator Tool Integration:** Passes `CALCULATOR_TOOL_SPEC` function declaration to Gemini 3.5 Flash calls and post-processes `math_breakdown` strings with AST `evaluate_expression` to guarantee deterministic arithmetic.
+- **Gemini Client Tool Support:** Extended `call_gemini()` in [gemini_client.py](file:///c:/git/KeLegislate/backend/app/agents/gemini_client.py) to accept optional `tools` parameter and forward tool declarations to `types.GenerateContentConfig`.
+- **Unit Testing:** Created [test_impact_agent.py](file:///c:/git/KeLegislate/backend/tests/test_impact_agent.py) with unit test coverage across financial, regulatory, AST math recalculation, fallback, and async wrappers.
+
+#### Key Technical Details
+- **Deterministic Math Post-Processing:** In addition to enabling function calling via `CALCULATOR_TOOL_SPEC`, `_verify_and_recalculate_math()` evaluates each item's `math_breakdown` expression using `evaluate_expression()`, updating `change_kes` and computing `net_monthly_impact` (converting annual/one-time amounts to monthly KES values).
+- **Privacy-by-Design:** Impact analysis is computed in-memory and returned to the caller; custom financial profiles are never saved alongside calculated impact results.
+
+#### Code Review & Refinements
+- **Review:** [step-2.8-financial-impact-agent.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.8-financial-impact-agent.md) — ✅ All 6 reported issues resolved:
+  - **Try/except Guard for API Calls (Issue 1 - Medium):** Wrapped `call_gemini` in a `try...except` block in [impact_agent.py](file:///c:/git/KeLegislate/backend/app/agents/impact_agent.py), logging API exceptions and returning a safe `_fallback_impact_response()`.
+  - **Compliance Cost Recalculation (Issue 2 - Low):** Updated `_verify_and_recalculate_math()` to always overwrite `compliance_cost_total` with recalculated totals and emit a `logger.warning` if the LLM's original total differed.
+  - **Net Monthly Discrepancy Warnings (Issue 3 - Low):** Added warning logging when recalculated AST `net_monthly_impact` differs by > KES 1.0 from the LLM's value.
+  - **Supabase Query Fallback Warning (Issue 4 - Medium):** Fixed `compute_financial_impact` to log a clear warning and return `_fallback_impact_response()` when Supabase query fails or returns no bill, eliminating fictional bill text generation.
+  - **JSON Fallback & Exception Tests (Issue 5 - Low):** Expanded [test_impact_agent.py](file:///c:/git/KeLegislate/backend/tests/test_impact_agent.py) with test cases covering `call_gemini` exceptions, markdown-fenced raw JSON text parsing fallback, malformed JSON fallback, and discrepancy warning logging.
+  - **Typed ImpactItem Model (Issue 6 - Low):** Defined `ImpactItem` Pydantic model in [schemas.py](file:///c:/git/KeLegislate/backend/app/models/schemas.py) and updated `ImpactResponse.impact_table` to `Optional[List[ImpactItem]] = None`. Added `_get_item_attr` / `_set_item_attr` helpers in `impact_agent.py` for uniform item field access.
+
+---
+
+### Step 2.9 — DAG Orchestrator
+
+#### What Was Done
+- **DAG State Machine:** Implemented [orchestrator.py](file:///c:/git/KeLegislate/backend/app/agents/orchestrator.py) with `PipelineState` dataclass, `run_pipeline()`, and `run_pipeline_async()`.
+- **Pipeline Stage Sequencing:** Sequentially executes:
+  1. Stage 1: Regex Value Extraction (`extract_financial_values`) -> updates `regex_extractions` & status `'extracted'`.
+  2. Stage 2: Summarization Agent (`summarize_bill`) -> updates `ai_summary_en`, `bill_tags`, & status `'summarized'`.
+  3. Stage 3: Verification Agent (`verify_bill_claims`) -> audits claims & updates status `'verified'`.
+  4. Stage 4: Translation Agent (`translate_bill`) -> updates `ai_summary_sw` & status `'translated'`.
+- **Admin Trigger Endpoint:** Created [admin.py](file:///c:/git/KeLegislate/backend/app/api/admin.py) and registered `admin.router` in [main.py](file:///c:/git/KeLegislate/backend/app/main.py) to expose `POST /api/admin/run-pipeline/{bill_id}` for triggering orchestrator DAG execution synchronously or asynchronously.
+- **Unit Testing:** Created [test_orchestrator.py](file:///c:/git/KeLegislate/backend/tests/test_orchestrator.py) testing full pipeline execution, force re-runs, failure handling, and async wrappers.
+
+#### Key Technical Details
+- **Idempotency & State Preservation:** `run_pipeline` respects step idempotency flags (`force=False` skips already completed steps).
+- **Fault Tolerance:** If any step raises an error, `run_pipeline` catches the exception, updates `bills.ai_status` to `'failed'` in Supabase, records the error message, and returns a `PipelineState` with status `'failed'`.
+
+#### Code Review & Refinements
+- **Review:** [step-2.9-dag-orchestrator.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.9-dag-orchestrator.md) — ✅ All 7 reported issues resolved:
+  - **Stage Failure Short-Circuiting (Issue 1 - Medium):** Updated [orchestrator.py](file:///c:/git/KeLegislate/backend/app/agents/orchestrator.py) to check stage return dicts for `status == "error"`. Short-circuits execution, sets `state.status = "failed"`, updates database `ai_status` to `'failed'`, and logs error details immediately without wasting downstream API calls.
+  - **Event Loop Thread Pool Offloading (Issue 2 - Medium):** Updated [admin.py](file:///c:/git/KeLegislate/backend/app/api/admin.py) to call `await run_pipeline_async(bill_id, force=force)`, delegating execution to worker threads without blocking FastAPI's async event loop.
+  - **Extraction Stage Deferral Note (Issue 3 - Low):** Updated docstrings in `orchestrator.py` clarifying that text extraction (PDF -> text) is handled upstream by `seed_bill.py` in Phase 2 and will be integrated into the DAG in Phase 5.
+  - **Explicit Offline Mock Fallback (Issue 4 - Low):** Fixed `run_pipeline` so mock bill fallback only activates when `supabase_admin is None` (offline unit tests). When Supabase is configured and query returns empty, returns a clean `bill-not-found` failure state.
+  - **Bill-Not-Found & Stage Error Unit Tests (Issue 5 - Low):** Expanded [test_orchestrator.py](file:///c:/git/KeLegislate/backend/tests/test_orchestrator.py) with test cases covering bill-not-found database responses and short-circuiting on stage error.
+  - **Genuine Async Threading in `run_pipeline_async` (Issue 6 - Low):** Implemented `asyncio.to_thread(run_pipeline, bill_id, force=force)` inside `run_pipeline_async`.
+  - **Empty Text Regex Warning (Issue 7 - Low):** Added check in Stage 1 to log warning and set `"status": "skipped"` if `extracted_text` is empty.
+
+---
+
+---
+
+### Step 2.10 — Impact API Endpoint (`POST /api/impact`)
+
+#### What Was Done
+- **Endpoint Implementation:** Implemented `POST /api/impact` in [impact.py](file:///c:/git/KeLegislate/backend/app/api/impact.py).
+- **Hustle Profile Resolver:** Added `get_hustle_profile(industry, tier)` helper in [hustle_profiles.py](file:///c:/git/KeLegislate/backend/app/models/hustle_profiles.py) for exact and partial tier string matching with graceful default fallback.
+- **Database Query & Error Handling:** Queries the target bill from Supabase (`bills` table). Returns `HTTP 404 Not Found` if the bill ID does not exist, or `HTTP 500 Internal Server Error` on database failure.
+- **Privacy-by-Design:** Executes financial & compliance analysis via `compute_financial_impact_analysis()` in memory. Calculated impact results are returned directly to the client without being stored in the database.
+
+#### Key Technical Details
+- **Unified Schema Response:** Returns contract-conforming `ImpactResponse` supporting financial bills, regulatory bills, and hybrid bills.
+- **Custom Profile Integration:** If `use_custom_profile=True` and Supabase is configured, attempts to resolve profile metrics from `user_profiles`, falling back to `get_hustle_profile` if unpopulated or unauthenticated.
+
+#### Code Review & Refinements
+- **Review:** [step-2.10-impact-api-endpoint.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.10-impact-api-endpoint.md) — ✅ All 5 reported issues resolved:
+  - **Scoped JWT Auth for Custom Profiles (Issue 1 - High):** Updated [impact.py](file:///c:/git/KeLegislate/backend/app/api/impact.py) to extract `Authorization` bearer token, verify identity via `supabase_admin.auth.get_user(token)`, and scope custom profile lookup to `.eq("user_id", user_id)`.
+  - **Async Thread Offloading & 90-Second Timeout (Issue 2 - Medium):** Offloaded `compute_financial_impact_analysis()` to worker threads via `asyncio.to_thread` and wrapped with `asyncio.wait_for(..., timeout=90.0)`. Returns `HTTP 504 Gateway Timeout` when execution exceeds 90 seconds per architectural design.
+  - **Canonical Industry Validation (Issue 3 - Low):** Added input validation enforcing `request.industry in INDUSTRIES` returning `HTTP 400 Bad Request` for unknown industries. Added `logger.warning` in `get_hustle_profile` when tier fallback occurs.
+  - **Gated Mock Fallback Mode (Issue 4 - Low):** Gated offline mock fallback in `impact.py` behind `settings.TESTING` or `mock-` bill ID prefix, returning `HTTP 503 Service Unavailable` otherwise when database connection is missing.
+  - **Custom Profile Fallback Warning (Issue 5 - Low):** Added explicit `logger.warning` when `use_custom_profile=True` is requested without a valid token or profile, indicating fallback to predefined tier baseline.
+
+
+---
+
+### Step 2.11 — Bills API Endpoints (`GET /api/bills`, `GET /api/bills/{id}`)
+
+#### What Was Done
+- **List Endpoint:** Implemented `GET /api/bills` in [bills.py](file:///c:/git/KeLegislate/backend/app/api/bills.py):
+  - Pagination via `page` and `limit` query parameters.
+  - Optional `industry` tag filter.
+  - Queries `bills` ordered by `created_at DESC` and joins `bill_tags` to populate industry tags.
+  - Returns `BillListResponse` containing `bills: List[BillBrief]`, `total`, `page`, `limit`.
+- **Detail Endpoint:** Implemented `GET /api/bills/{bill_id}` in [bills.py](file:///c:/git/KeLegislate/backend/app/api/bills.py):
+  - Fetches complete bill record from `bills` table by ID.
+  - Fetches associated industry tags from `bill_tags`.
+  - Returns `HTTP 404 Not Found` if bill ID does not exist.
+  - Returns `BillDetailResponse` (`ai_summary_en`, `ai_summary_sw`, `regex_extractions`, `tags`, `source_url`, `created_at`).
+- **Unit Testing:** Created [test_api_endpoints.py](file:///c:/git/KeLegislate/backend/tests/test_api_endpoints.py) with 8 test cases covering list pagination, industry filtering, bill detail lookup, 404 handling, and impact endpoint execution. All 60 unit tests across the entire test suite passed (100% pass rate).
+
+#### Code Review & Refinements
+- **Review:** [step-2.11-bills-api-endpoints.md](file:///c:/git/KeLegislate/docs/code_reviews/step-2.11-bills-api-endpoints.md) — ✅ All 6 reported issues resolved:
+  - **`ai_status` Filter (Issue 1 - Medium):** Added `ai_status: Optional[str] = Query("translated")` parameter to `GET /api/bills` in [bills.py](file:///c:/git/KeLegislate/backend/app/api/bills.py), filtering by `"translated"` by default unless explicitly overridden (e.g. `ai_status="all"`).
+  - **Column Selection Optimization (Issue 2 - Low):** Updated `GET /api/bills` query from `select("*")` to `select("id, title, bill_type, created_at, ai_status", count="exact")`, avoiding unnecessary payload transfer of large summary/regex fields.
+  - **Industry Filter Simplification (Issue 3 - Low):** Simplified empty check logic for `bill_tags` matches in [bills.py](file:///c:/git/KeLegislate/backend/app/api/bills.py).
+  - **Gated Mock Mode (Issue 4 - Low):** Gated offline mock fallback behind `settings.TESTING` or `mock-` bill ID prefix, returning `HTTP 503 Service Unavailable` when database connection is missing in non-test mode.
+  - **Detail Status Warning (Issue 5 - Low):** Added `logger.warning` in `GET /api/bills/{bill_id}` when an in-progress bill (`ai_status != 'translated'`) is fetched.
+  - **`Literal` Type Validation (Issue 6 - Low):** Enforced `Literal["financial", "regulatory", "hybrid"]` type constraint for `bill_type` in [schemas.py](file:///c:/git/KeLegislate/backend/app/models/schemas.py) and added fallback warning logging in `bills.py`.
+
+
+---
+
+### Maintenance & Next Developer Guide
+
+> [!IMPORTANT]
+> **PHASE 2 EXIT CRITERIA DEFERRAL**: Per explicit user directive, checking off Phase 2 exit criteria checkboxes is deferred until the user resolves AI API key issues and live integration testing against Gemini API can be executed.
+
+- **Next Steps:** Proceed to **Phase 3 — Core Web App + Auth** (`phase-3/core-webapp-auth` branch), starting with design system refinement and Supabase Auth (Phone OTP) setup.
+- **Running Test Suite:** Execute all offline unit tests:
+  ```bash
+  $env:PYTHONPATH="backend"; .venv\Scripts\python.exe -m pytest backend/tests/ -k "not test_call_gemini_live_integration" -v
+  ```
+
+
+
+
+
+
 
 
 
