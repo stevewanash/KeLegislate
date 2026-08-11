@@ -9,7 +9,7 @@
   --primary-hover: #4f46e5;
   --primary-light: #eeebff;
   --primary-glow: rgba(91, 70, 246, 0.15);
-  
+
   /* Status Colors */
   --success: #16a34a;
   --success-bg: #f0fdf4;
@@ -25,12 +25,12 @@
   --bg-card: #ffffff;
   --bg-card-subtle: #f4f7fb;
   --bg-input: #f8fafc;
-  
+
   /* Borders */
   --border-color: #e2e8f0;
   --border-hover: #cbd5e1;
   --border-focus: #5b46f6;
-  
+
   /* Typography Colors */
   --text-primary: #0f172a;
   --text-secondary: #475569;
@@ -66,13 +66,16 @@
 /* ==========================================
    Global Reset & Base Typography
    ========================================== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
+html,
+body {
   background-color: var(--bg-main);
   color: var(--text-primary);
   font-family: var(--font-body);
@@ -82,7 +85,12 @@ html, body {
   min-height: 100vh;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-title);
   font-weight: 700;
   color: var(--text-primary);
@@ -106,7 +114,8 @@ a:hover {
    ========================================== */
 .container {
   width: 100%;
-  max-width: 480px; /* Mobile-first default matching mockup feel */
+  max-width: 480px;
+  /* Mobile-first default matching mockup feel */
   margin: 0 auto;
   padding: 0 var(--space-md);
 }
@@ -128,7 +137,8 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding-bottom: 72px; /* Space for bottom nav on mobile */
+  padding-bottom: 72px;
+  /* Space for bottom nav on mobile */
 }
 
 @media (min-width: 768px) {
@@ -282,7 +292,8 @@ a:hover {
 /* ==========================================
    Cards & Content Containers
    ========================================== */
-.bill-card, .content-card {
+.bill-card,
+.content-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
@@ -544,7 +555,8 @@ a:hover {
   margin-bottom: var(--space-xs);
 }
 
-.form-input, .form-textarea {
+.form-input,
+.form-textarea {
   width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -556,7 +568,8 @@ a:hover {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.form-input:focus, .form-textarea:focus {
+.form-input:focus,
+.form-textarea:focus {
   outline: none;
   border-color: var(--primary);
   background: var(--bg-card);
@@ -743,11 +756,17 @@ a:hover {
    Utility Animations
    ========================================== */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
   animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
-

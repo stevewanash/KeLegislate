@@ -32,6 +32,10 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(webhooks.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 
+# Direct route alias for Supabase Auth SMS webhook
+app.add_api_route("/api/auth/send-sms", webhooks.supabase_auth_send_sms, methods=["POST"], tags=["Webhooks"])
+
+
 @app.get("/health")
 async def health_check():
     """

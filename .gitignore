@@ -4,7 +4,7 @@
 .venv/
 venv/
 env/
-.env
+.env.local
 __pycache__/
 *.pyc
 **/secrets.toml
@@ -33,6 +33,7 @@ code_review.md
 sprint.md
 docs/implementation_log.md
 docs/code_reviews/
+docs/vps-setup.md
 
 # ============================================
 # VS Code (keep workspace settings, ignore user prefs)

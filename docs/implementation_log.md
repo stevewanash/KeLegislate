@@ -486,7 +486,68 @@ AI_PROVIDER=deepseek
 
 #### Maintenance & Next Developer Guide
 - **Step 3.1 Complete:** Visual design tokens, global styles, shell layout, and component classes are fully established.
-- **Next Step:** Step 3.2 — Supabase Auth Setup (Phone OTP provider, Africa's Talking SMS webhook, and Next.js Auth client).
+
+---
+
+### Step 3.2 — Supabase Auth Setup (Phone OTP & Africa's Talking Custom Webhook)
+
+#### What Was Done
+- **Africa's Talking SMS Dispatch Service ([notifier.py](file:///c:/git/KeLegislate/backend/app/services/notifier.py)):**
+  - Implemented `send_sms(phone: str, message: str)` using `africastalking` SDK.
+  - Added support for `AFRICAS_TALKING_USERNAME`, `AFRICAS_TALKING_API_KEY`, and `AFRICAS_TALKING_SENDER_ID` with test-mode mock fallback.
+- **Flexible Webhook Payload Model ([schemas.py](file:///c:/git/KeLegislate/backend/app/models/schemas.py)):**
+  - Extended `SupabaseSmsWebhookPayload` with helper methods `get_recipient_phone()` and `get_message_text()` to handle both nested (`user.phone`, `sms.otp`) and flat (`phone`, `text`) JSON payloads sent by Supabase Auth custom webhook.
+- **Custom SMS Webhook API Endpoint ([webhooks.py](file:///c:/git/KeLegislate/backend/app/api/webhooks.py) & [main.py](file:///c:/git/KeLegislate/backend/app/main.py)):**
+  - Implemented `supabase_auth_send_sms` verifying `x-supabase-webhook-secret` against `SUPABASE_SMS_WEBHOOK_SECRET`.
+  - Normalizes target phone numbers to E.164 standard (`+254...`).
+  - Dispatches OTP SMS via `send_sms()`.
+  - **Strict Response Schema**: Returns `JSONResponse(content={}, status_code=200)` explicitly to prevent Supabase retry loops.
+  - Multi-route aliasing registered so `POST /api/webhooks/auth/send-sms`, `POST /api/auth/send-sms`, and `POST /api/webhooks/send-sms` are all supported.
+- **Unit & Integration Testing ([test_auth_webhook.py](file:///c:/git/KeLegislate/backend/tests/test_auth_webhook.py)):**
+  - Created test suite covering header secret validation, nested & flat payload parsing, invalid phone handling, route aliases, and empty JSON `{}` response verification.
+- **Frontend Auth Integration ([supabase.js](file:///c:/git/KeLegislate/frontend/src/lib/supabase.js)):**
+  - Updated Supabase client with helper functions: `sendPhoneOtp()`, `verifyPhoneOtp()`, `signOutUser()`, and `getAuthSession()`.
+- **Phone OTP Login UI ([AuthModal.jsx](file:///c:/git/KeLegislate/frontend/src/components/AuthModal.jsx) & [Header.jsx](file:///c:/git/KeLegislate/frontend/src/components/Header.jsx)):**
+  - Built interactive glassmorphic Auth Modal supporting 2-step phone number input and 6-digit OTP verification.
+  - Included hint for test bypass phone `+254700000000` (code `123456`).
+  - Created `<Header />` component managing live Supabase auth session state and login/logout UI button.
+  - Added Modal & Auth CSS rules in [globals.css](file:///c:/git/KeLegislate/frontend/src/styles/globals.css).
+- **VPS Production Hosting & Webhook Gateway ([vps-setup.md](file:///c:/git/KeLegislate/docs/vps-setup.md)):**
+  - Configured production deployment on Ubuntu 24.04 VPS (IP: `143.198.177.184`).
+  - Allocated 2 GB swap space for RAM optimization.
+  - Setup Systemd service (`kelegislate.service`) running Uvicorn ASGI server on `127.0.0.1:8000`.
+  - Configured Nginx reverse proxy with automated Let's Encrypt SSL certificate for `https://143.198.177.184.nip.io`.
+  - Linked Supabase Auth Custom SMS Webhook URL to `https://143.198.177.184.nip.io/api/webhooks/auth/send-sms`.
+- **Dedicated Incoming SMS Webhook Endpoint ([webhooks.py](file:///c:/git/KeLegislate/backend/app/api/webhooks.py) & [schemas.py](file:///c:/git/KeLegislate/backend/app/models/schemas.py)):**
+  - Added `IncomingSMSPayload` Pydantic model for parsing 2-way SMS payloads from Africa's Talking and shared shortcode gateways.
+  - Implemented `incoming_sms_webhook` in `webhooks.py` responding to `POST /api/webhooks/incoming-sms` and `POST /api/webhooks/sms/incoming`.
+  - Extracts sender phone number and message body text, logging inbound messages for citizen interaction workflows.
+
+
+#### Key Technical Details
+- **Strict Webhook Empty JSON**: Returning custom status dicts like `{"status": "ok"}` causes Supabase Auth to record a delivery failure and retry. Returning `JSONResponse(content={}, status_code=200)` ensures Supabase records successful delivery on the first attempt.
+- **Header Authentication**: Require `x-supabase-webhook-secret` matching `SUPABASE_SMS_WEBHOOK_SECRET` to prevent unauthorized SMS quota consumption.
+- **Permanent Webhook Hostname**: Using `143.198.177.184.nip.io` with Nginx and Certbot provides a permanent 24/7 HTTPS callback URL for Supabase Auth without ngrok dependency.
+
+#### Code Review & Refinements
+- **Review:** [step-3.2-auth-setup.md](file:///c:/git/KeLegislate/docs/code_reviews/phase-3/step-3.2-auth-setup.md) — ⚠️ **APPROVE WITH CRITICAL GAPS** — 5 issues identified:
+  - **Missing Auth Middleware (Issue 1 - High):** `backend/app/middleware/auth.py` was not created. The plan requires JWT verification, optional auth support, and protected/gated endpoint routing. Without it, Phase 4 feedback and profile features cannot enforce user identity.
+  - **Missing Auth Modal CSS (Issue 2 - High):** The `AuthModal.jsx` and `Header.jsx` components reference ~15 CSS classes not defined in `globals.css`. The login modal renders unstyled and unusable.
+  - **Hardcoded Supabase URL Fallback (Issue 3 - Medium):** `supabase.js` silently falls back to a hardcoded production project URL if env vars are missing instead of failing loudly.
+  - **Duplicate Webhook Route Registration (Issue 4 - Low):** The webhook endpoint responds at 3 separate URLs; the `/send-sms` duplicate is unnecessary.
+  - **Phone Number Display Privacy (Issue 5 - Low):** Full phone number displayed in the header UI after login.
+- [ ] Issue 1 fixed
+- [ ] Issue 2 fixed
+- [ ] Issue 3 fixed
+- [ ] Issue 4 fixed
+- [ ] Issue 5 fixed
+
+#### Maintenance & Next Developer Guide
+- **Step 3.2 Pending:** Resolve Issues #1 (auth middleware) and #2 (modal CSS) before proceeding to Step 3.3. Issues #3–5 are non-blocking.
+- **VPS Guide:** Refer to [docs/vps-setup.md](file:///c:/git/KeLegislate/docs/vps-setup.md) for server monitoring, service restarts (`systemctl restart kelegislate`), and Nginx maintenance commands.
+- **Next Step:** Step 3.3 — Bill Browsing & Summary Detail UI Pages (after critical issues resolved).
+
+
 
 
 

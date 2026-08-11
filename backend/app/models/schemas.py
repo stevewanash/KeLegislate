@@ -158,6 +158,35 @@ class DeliveryReceiptRequest(BaseModel):
     networkCode: Optional[str] = None
 
 class SupabaseSmsWebhookPayload(BaseModel):
-    type: str  # "sms" or similar
-    phone: str
+    type: Optional[str] = "sms"
+    phone: Optional[str] = None
+    text: Optional[str] = None
+    user: Optional[Dict[str, Any]] = None
+    sms: Optional[Dict[str, Any]] = None
+
+    def get_recipient_phone(self) -> Optional[str]:
+        if self.phone:
+            return self.phone
+        if self.user and isinstance(self.user, dict) and "phone" in self.user:
+            return self.user["phone"]
+        return None
+
+    def get_message_text(self) -> Optional[str]:
+        if self.text:
+            return self.text
+        if self.sms and isinstance(self.sms, dict):
+            if "otp" in self.sms:
+                return f"Your Hustle Yetu verification code is: {self.sms['otp']}"
+            if "text" in self.sms:
+                return self.sms["text"]
+        return None
+
+class IncomingSMSPayload(BaseModel):
+    from_phone: Optional[str] = Field(None, alias="from")
+    to: Optional[str] = None
     text: str
+    date: Optional[str] = None
+    id: Optional[str] = None
+    linkId: Optional[str] = None
+
+
