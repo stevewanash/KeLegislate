@@ -33,7 +33,6 @@ async def incoming_sms_webhook(payload: dict):
 
 
 @router.post("/auth/send-sms")
-@router.post("/send-sms")
 async def supabase_auth_send_sms(
     payload: SupabaseSmsWebhookPayload,
     x_supabase_webhook_secret: str = Header(None, alias="x-supabase-webhook-secret")

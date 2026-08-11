@@ -4,7 +4,9 @@
 .venv/
 venv/
 env/
-.env.local
+.env
+backend/.env
+*.env
 __pycache__/
 *.pyc
 **/secrets.toml

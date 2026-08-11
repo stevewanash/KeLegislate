@@ -36,10 +36,14 @@ export default function Header() {
 
   const formatUserPhone = (phone) => {
     if (!phone) return 'Account';
-    if (phone.startsWith('+254')) {
-      return `0${phone.slice(4)}`;
+    let cleaned = phone;
+    if (cleaned.startsWith('+254')) {
+      cleaned = `0${cleaned.slice(4)}`;
     }
-    return phone;
+    if (cleaned.length >= 10) {
+      return `${cleaned.slice(0, 4)}***${cleaned.slice(-3)}`;
+    }
+    return cleaned;
   };
 
   return (

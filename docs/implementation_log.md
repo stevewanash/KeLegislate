@@ -522,30 +522,35 @@ AI_PROVIDER=deepseek
   - Added `IncomingSMSPayload` Pydantic model for parsing 2-way SMS payloads from Africa's Talking and shared shortcode gateways.
   - Implemented `incoming_sms_webhook` in `webhooks.py` responding to `POST /api/webhooks/incoming-sms` and `POST /api/webhooks/sms/incoming`.
   - Extracts sender phone number and message body text, logging inbound messages for citizen interaction workflows.
+- **Auth Middleware Implementation ([auth.py](file:///c:/git/KeLegislate/backend/app/middleware/auth.py) & [test_auth_middleware.py](file:///c:/git/KeLegislate/backend/tests/test_auth_middleware.py)):**
+  - Created `backend/app/middleware/auth.py` and `__init__.py` implementing `get_current_user` (strict auth requiring JWT, raising 401 on missing/invalid token) and `get_optional_user` (optional auth returning user or `None`).
+  - Added unit test suite in `test_auth_middleware.py` (84/84 total backend unit tests passing).
 
 
 #### Key Technical Details
 - **Strict Webhook Empty JSON**: Returning custom status dicts like `{"status": "ok"}` causes Supabase Auth to record a delivery failure and retry. Returning `JSONResponse(content={}, status_code=200)` ensures Supabase records successful delivery on the first attempt.
 - **Header Authentication**: Require `x-supabase-webhook-secret` matching `SUPABASE_SMS_WEBHOOK_SECRET` to prevent unauthorized SMS quota consumption.
 - **Permanent Webhook Hostname**: Using `143.198.177.184.nip.io` with Nginx and Certbot provides a permanent 24/7 HTTPS callback URL for Supabase Auth without ngrok dependency.
+- **Centralized Auth Middleware**: Endpoint protection uses FastAPI dependency injection (`Depends(get_current_user)` / `Depends(get_optional_user)`), validating Supabase Bearer JWT tokens server-side.
 
 #### Code Review & Refinements
-- **Review:** [step-3.2-auth-setup.md](file:///c:/git/KeLegislate/docs/code_reviews/phase-3/step-3.2-auth-setup.md) — ⚠️ **APPROVE WITH CRITICAL GAPS** — 5 issues identified:
-  - **Missing Auth Middleware (Issue 1 - High):** `backend/app/middleware/auth.py` was not created. The plan requires JWT verification, optional auth support, and protected/gated endpoint routing. Without it, Phase 4 feedback and profile features cannot enforce user identity.
-  - **Missing Auth Modal CSS (Issue 2 - High):** The `AuthModal.jsx` and `Header.jsx` components reference ~15 CSS classes not defined in `globals.css`. The login modal renders unstyled and unusable.
-  - **Hardcoded Supabase URL Fallback (Issue 3 - Medium):** `supabase.js` silently falls back to a hardcoded production project URL if env vars are missing instead of failing loudly.
-  - **Duplicate Webhook Route Registration (Issue 4 - Low):** The webhook endpoint responds at 3 separate URLs; the `/send-sms` duplicate is unnecessary.
-  - **Phone Number Display Privacy (Issue 5 - Low):** Full phone number displayed in the header UI after login.
-- [ ] Issue 1 fixed
-- [ ] Issue 2 fixed
-- [ ] Issue 3 fixed
-- [ ] Issue 4 fixed
-- [ ] Issue 5 fixed
+- **Review:** [step-3.2-auth-setup.md](file:///c:/git/KeLegislate/docs/code_reviews/phase-3/step-3.2-auth-setup.md) — ✅ **APPROVED** — All 5 issues resolved:
+  - **Missing Auth Middleware (Issue 1 - High):** Created [auth.py](file:///c:/git/KeLegislate/backend/app/middleware/auth.py) implementing `get_current_user` and `get_optional_user` FastAPI dependencies.
+  - **Missing Auth Modal CSS (Issue 2 - High):** Added all modal & auth button CSS classes to [globals.css](file:///c:/git/KeLegislate/frontend/src/styles/globals.css).
+  - **Hardcoded Supabase URL Fallback (Issue 3 - Medium):** Removed hardcoded production fallback string from [supabase.js](file:///c:/git/KeLegislate/frontend/src/lib/supabase.js); added explicit missing env var warning.
+  - **Duplicate Webhook Route Registration (Issue 4 - Low):** Cleaned up extra `/send-sms` decorator in [webhooks.py](file:///c:/git/KeLegislate/backend/app/api/webhooks.py).
+  - **Phone Number Display Privacy (Issue 5 - Low):** Updated [Header.jsx](file:///c:/git/KeLegislate/frontend/src/components/Header.jsx) to mask middle digits (`0712***678`).
+- [x] Issue 1 fixed
+- [x] Issue 2 fixed
+- [x] Issue 3 fixed
+- [x] Issue 4 fixed
+- [x] Issue 5 fixed
 
 #### Maintenance & Next Developer Guide
-- **Step 3.2 Pending:** Resolve Issues #1 (auth middleware) and #2 (modal CSS) before proceeding to Step 3.3. Issues #3–5 are non-blocking.
+- **Step 3.2 Complete:** Supabase Auth Setup, Phone OTP gateway, Auth Middleware, and code review resolutions are 100% complete.
 - **VPS Guide:** Refer to [docs/vps-setup.md](file:///c:/git/KeLegislate/docs/vps-setup.md) for server monitoring, service restarts (`systemctl restart kelegislate`), and Nginx maintenance commands.
-- **Next Step:** Step 3.3 — Bill Browsing & Summary Detail UI Pages (after critical issues resolved).
+- **Next Step:** Step 3.3 — Landing Page or Step 3.4 — Bill List Page.
+
 
 
 
