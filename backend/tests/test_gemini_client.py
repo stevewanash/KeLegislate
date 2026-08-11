@@ -33,7 +33,7 @@ def test_gemini_response_schema():
     assert resp.structured_output_requested is False
 
 def test_get_gemini_client_missing_key_raises_value_error():
-    with patch.object(settings, "GEMINI_API_KEY", ""):
+    with patch.object(settings, "GEMINI_PLATFORM", "ai_studio"), patch.object(settings, "GEMINI_API_KEY", None):
         with pytest.raises(ValueError, match="GEMINI_API_KEY is not set"):
             get_gemini_client()
 
@@ -189,8 +189,8 @@ def test_count_tokens_transient_retry():
     assert mock_client.models.count_tokens.call_count == 2
 
 @pytest.mark.skipif(
-    not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.startswith("mock"),
-    reason="Requires valid non-mock GEMINI_API_KEY environment variable",
+    settings.GEMINI_PLATFORM != "vertex_ai" and (not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.startswith("mock")),
+    reason="Requires valid Vertex AI platform or non-mock GEMINI_API_KEY",
 )
 def test_call_gemini_live_integration():
     try:

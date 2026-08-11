@@ -7,8 +7,11 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str
     SUPABASE_DB_URL: str
     
-    GEMINI_API_KEY: str
+    GEMINI_API_KEY: str | None = None
     GEMINI_PLATFORM: str = "vertex_ai"
+    GOOGLE_APPLICATION_CREDENTIALS: str | None = None
+    VERTEX_PROJECT: str | None = None
+    VERTEX_LOCATION: str = "us-central1"
     
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
@@ -45,8 +48,11 @@ except Exception as e:
         SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "mock-key")
         SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "mock-service-key")
         SUPABASE_DB_URL = os.environ.get("SUPABASE_DB_URL", "postgresql://mock@localhost:5432/mock")
-        GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "mock-gemini-key")
+        GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", None)
         GEMINI_PLATFORM = os.environ.get("GEMINI_PLATFORM", "vertex_ai")
+        GOOGLE_APPLICATION_CREDENTIALS = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", None)
+        VERTEX_PROJECT = os.environ.get("VERTEX_PROJECT", None)
+        VERTEX_LOCATION = os.environ.get("VERTEX_LOCATION", "us-central1")
         DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
         DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
         AI_PROVIDER = os.environ.get("AI_PROVIDER", "gemini")

@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from typing import Any, Optional, Type, TypeVar
 from pydantic import BaseModel, Field
@@ -27,18 +28,35 @@ class GeminiResponse(BaseModel):
 
 def get_gemini_client(timeout: int = 60000) -> genai.Client:
     """
-    Initialize and return a google-genai Client instance using configured API key,
+    Initialize and return a google-genai Client instance using configured API key or Vertex AI ADC,
     platform routing, and explicit request timeout (default: 60000ms / 60s).
     """
-    api_key = settings.GEMINI_API_KEY
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY is not set in settings.")
+    platform = getattr(settings, "GEMINI_PLATFORM", "vertex_ai")
+    api_key = getattr(settings, "GEMINI_API_KEY", None)
+    google_creds = getattr(settings, "GOOGLE_APPLICATION_CREDENTIALS", None)
+    vertex_project = getattr(settings, "VERTEX_PROJECT", None)
+    vertex_location = getattr(settings, "VERTEX_LOCATION", "us-central1")
+
+    if google_creds and os.path.exists(google_creds):
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_creds
+
     kwargs: dict[str, Any] = {
-        "api_key": api_key,
         "http_options": {"timeout": timeout},
     }
-    if getattr(settings, "GEMINI_PLATFORM", "vertex_ai") == "vertex_ai":
+
+    if platform == "vertex_ai":
         kwargs["vertexai"] = True
+        if vertex_project:
+            kwargs["project"] = vertex_project
+        if vertex_location:
+            kwargs["location"] = vertex_location
+        if api_key:
+            kwargs["api_key"] = api_key
+    else:
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY is not set in settings for AI Studio platform.")
+        kwargs["api_key"] = api_key
+
     return genai.Client(**kwargs)
 
 def call_gemini(
