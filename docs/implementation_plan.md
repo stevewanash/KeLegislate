@@ -381,7 +381,7 @@ Rather than building the full scraper automation first, simulate bill ingestion:
 ### Step 3.1 — Design System & Global Styles
 
 - Finalize the CSS design system in `globals.css`:
-  - Color palette (dark mode primary), typography (Inter or Outfit from Google Fonts), spacing scale.
+  - Color palette (Light mode primary), typography (Inter or Outfit from Google Fonts), spacing scale.
   - Component-level styles: cards, buttons, badges, form inputs, tables, loading spinners.
   - Responsive breakpoints (mobile-first: 375px, tablet: 768px, desktop: 1024px).
 - This is the visual foundation. All subsequent UI work uses these styles.

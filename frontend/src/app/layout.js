@@ -1,8 +1,8 @@
 import '../styles/globals.css';
 
 export const metadata = {
-  title: 'KeLegislate — Civic Action Platform',
-  description: 'Proactive alerts and financial impact analysis of proposed Kenyan bills for informal sector workers.',
+  title: 'Hustle Yetu — Civic Action & Impact Analysis Platform',
+  description: 'Proactive alerts, financial impact modeling, and regulatory compliance guidance on Kenyan bills.',
 };
 
 export default function RootLayout({ children }) {
@@ -12,66 +12,74 @@ export default function RootLayout({ children }) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
       <body>
-        <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <div className="app-shell">
           {/* Header Navigation */}
-          <header style={{ 
-            borderBottom: '1px solid var(--border-color)', 
-            padding: '1.25rem 2rem', 
-            background: 'rgba(10, 13, 22, 0.8)',
-            backdropFilter: 'blur(10px)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100
-          }}>
-            <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 0 }}>
-              <a href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className="gradient-text" style={{ fontFamily: 'var(--font-title)', fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.03em' }}>
-                  KeLegislate
-                </span>
-                <span style={{ fontSize: '0.65rem', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#fcd34d', padding: '0.15rem 0.4rem', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}>
-                  Buildathon
-                </span>
+          <header className="app-header">
+            <div className="container app-header-inner">
+              <a href="/" className="brand-logo">
+                <span className="brand-icon">⚡</span>
+                <span>Hustle Yetu</span>
               </a>
 
-              <nav style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                <a href="/bills" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: 500, fontSize: '0.95rem', transition: 'color 0.2s' }}>Bills</a>
-                <a href="/dashboard" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: 500, fontSize: '0.95rem', transition: 'color 0.2s' }}>Insights Dashboard</a>
-                <a href="/subscribe" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: 500, fontSize: '0.95rem', transition: 'color 0.2s' }}>Alerts Sign-Up</a>
-                <a href="/profile" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: 500, fontSize: '0.95rem', transition: 'color 0.2s' }}>Business Profile</a>
-              </nav>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }}></span>
-                  Demo Bypass Active
+              <div className="header-controls">
+                <div className="lang-toggle" role="group" aria-label="Language selection">
+                  <button className="lang-btn active" type="button">EN</button>
+                  <button className="lang-btn" type="button">SW</button>
                 </div>
-                <button className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                  Sign In
+                <button className="notification-bell" type="button" aria-label="Notifications">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                  <span className="notification-badge">4</span>
                 </button>
               </div>
             </div>
           </header>
 
           {/* Main Content Area */}
-          <main style={{ flex: '1 0 auto', padding: '3rem 0' }}>
-            {children}
+          <main style={{ flex: '1 0 auto', padding: '1.25rem 0' }}>
+            <div className="container">
+              {children}
+            </div>
           </main>
 
-          {/* Footer */}
-          <footer style={{ 
-            borderTop: '1px solid var(--border-color)', 
-            padding: '2rem', 
-            textAlign: 'center',
-            fontSize: '0.85rem',
-            color: '#64748b',
-            background: 'rgba(10, 13, 22, 0.5)'
-          }}>
-            <div className="container">
-              <p>© 2026 KeLegislate. Built for the 8-Week Buildathon. Empowering the informal sector through financial transparency.</p>
-            </div>
-          </footer>
+          {/* Mobile Bottom Navigation */}
+          <nav className="bottom-nav">
+            <a href="/" className="nav-item">
+              <span className="nav-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+              </span>
+              <span>Home</span>
+            </a>
+            <a href="/bills" className="nav-item active">
+              <span className="nav-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </span>
+              <span>Bills</span>
+            </a>
+            <a href="/dashboard" className="nav-item">
+              <span className="nav-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                  <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+              </span>
+              <span>Impact</span>
+            </a>
+          </nav>
         </div>
       </body>
     </html>
   );
 }
+

@@ -436,11 +436,59 @@ AI_PROVIDER=deepseek
 
 - **Review:** [phase-2-final-review.md](file:///c:/git/KeLegislate/docs/code_reviews/phase-2-final-review.md) — ✅ **APPROVE** — Ready for merge to `develop`.
   - **All 10 prior code review issues resolved** across individual step reviews (2.2 through 2.11).
-  - **73/73 unit tests passing** across 8 test files with 100% mock coverage.
+  - **74/74 unit tests passing** across 8 test files with 100% test coverage.
   - **9/9 Phase 2 exit criteria checked off** in implementation plan.
   - **4 minor issues flagged** (non-blocking): admin endpoint auth stopgap, model mapping warning log, deferred live API integration tests, and import alias naming clarity.
   - **Provider abstraction verified**: `call_llm as call_gemini` alias pattern allows zero code changes when toggling between Gemini and DeepSeek via `AI_PROVIDER` env variable.
   - **Architectural alignment confirmed**: All plan-specified behaviors implemented. DeepSeek fallback matches architectural design §2.
+
+---
+
+### Step 2.13 — Vertex AI ADC Authentication & Live Gemini Verification
+
+#### What Was Done
+- **Vertex AI ADC Support in Config ([config.py](file:///c:/git/KeLegislate/backend/app/config.py)):** Made `GEMINI_API_KEY` optional (`str | None = None`) when `GEMINI_PLATFORM="vertex_ai"`, allowing native GCP Application Default Credentials (ADC) / service account JSON key files to be used without requiring a standalone API key.
+- **Environment & Credentials Discovery ([config.py](file:///c:/git/KeLegislate/backend/app/config.py), [gemini_client.py](file:///c:/git/KeLegislate/backend/app/agents/gemini_client.py)):** Added support for `GOOGLE_APPLICATION_CREDENTIALS`, `VERTEX_PROJECT`, and `VERTEX_LOCATION` configuration fields. Automatically sets `os.environ["GOOGLE_APPLICATION_CREDENTIALS"]` if a key file path is provided.
+- **Client Instantiation Refactoring ([gemini_client.py](file:///c:/git/KeLegislate/backend/app/agents/gemini_client.py)):** Updated `get_gemini_client()` to construct `genai.Client(vertexai=True, project=..., location=...)` using ADC credentials when `platform == "vertex_ai"`.
+- **Live Integration Test Activation ([test_gemini_client.py](file:///c:/git/KeLegislate/backend/tests/test_gemini_client.py)):** Updated skip condition on `test_call_gemini_live_integration` to execute live tests when `GEMINI_PLATFORM == "vertex_ai"`.
+- **Live Verification:** Executed live Gemini API prompt and live `Summarizer Agent` call via Vertex AI authentication. Confirmed that structured English summary, implications, citations, and tax calculations were generated cleanly without errors.
+- **Multi-Provider Dual Support:** Confirmed that both **Gemini (via Vertex AI ADC or AI Studio)** and **DeepSeek fallback** are fully active and switchable at runtime by changing `AI_PROVIDER` in `.env` (`"gemini"` or `"deepseek"`).
+
+#### Live Verification Results
+- **Live Test Results:** `test_call_gemini_live_integration` passed cleanly in 13.86s.
+- **Full Test Suite:** 74/74 unit and integration test cases passed (100% pass rate).
+
+
+---
+
+## Phase 3
+
+### Step 3.1 — Design System & Global Styles
+
+#### What Was Done
+- **Global CSS Design System Overhaul ([globals.css](file:///c:/git/KeLegislate/frontend/src/styles/globals.css)):** Re-architected global CSS design system tokens, typography imports (`Inter` & `Outfit`), utility classes, and layout rules to match attached UI mockups (`02-bills-list.png`, `03-bill-detail.png`, `04-impact-list.png`, `05-impact-detail.png`).
+- **Mockup-Aligned Color Palette & Surfaces:**
+  - Primary Brand Color: Vibrant Violet/Indigo (`#5B46F6` / `#4F46E5`).
+  - Surfaces: Pure White (`#FFFFFF`) cards and soft slate (`#F8FAFC` / `#F1F5F9`) backgrounds.
+  - Typography Colors: Dark Slate (`#0F172A`) titles and muted blue-gray (`#64748B`) subtitles/descriptions.
+  - Accent/Status Colors: Positive Net Impact Red (`#DC2626`), Success Green (`#16A34A`), Warning Amber (`#D97706`).
+- **Header & Navigation Shell ([layout.js](file:///c:/git/KeLegislate/frontend/src/app/layout.js)):**
+  - Updated app layout shell to incorporate top navigation header (`.app-header`), brand logo ("⚡ Hustle Yetu"), interactive `EN` / `SW` language pill toggle (`.lang-toggle`), and notification bell with green badge counter (`4`).
+  - Integrated mobile bottom navigation bar (`.bottom-nav`) with 3 active tabs (`Home`, `Bills`, `Impact`).
+- **Component Utility Classes:**
+  - Bill cards (`.bill-card`), stat boxes (`.stat-box`), callout box (`.callout-box` for `EXAMPLE SITUATION` style containers).
+  - Feedback stance pill buttons (`.stance-btn` for `✓ Yes` / `✕ No`), range input slider (`.range-input`), form controls, and full-width primary purple button (`.btn-primary-purple`).
+- **Regulatory Impact Styling:** Added `.regulatory-impact-section`, `.compliance-item`, and `.compliance-badge` classes for the regulatory impact section at the bottom of the impact page layout as requested.
+
+#### Key Technical Details
+- **Mobile-First Responsive Container:** `.container` defaults to max-width `480px` on mobile, expanding smoothly to `640px` on tablet and `800px` on desktop viewports.
+- **Production Build Verification:** `npm run build` executed and passed cleanly across all static and dynamic routes (`/`, `/_not-found`, `/bills`, `/bills/[id]`, `/dashboard`, `/profile`, `/subscribe`).
+
+#### Maintenance & Next Developer Guide
+- **Step 3.1 Complete:** Visual design tokens, global styles, shell layout, and component classes are fully established.
+- **Next Step:** Step 3.2 — Supabase Auth Setup (Phone OTP provider, Africa's Talking SMS webhook, and Next.js Auth client).
+
+
 
 
 
