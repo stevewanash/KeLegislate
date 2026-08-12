@@ -1,10 +1,8 @@
-import asyncio
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Header, status
+from fastapi import APIRouter, HTTPException, status
 
-from app.models.schemas import ImpactRequest, ImpactResponse
-from app.models.hustle_profiles import INDUSTRIES, get_hustle_profile
+from app.models.schemas import ImpactResponse
 from app.agents.impact_agent import compute_financial_impact_analysis
 from app.database import supabase_admin
 from app.config import settings
@@ -14,110 +12,90 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/impact", tags=["Impact"])
 
 
-@router.post("", response_model=ImpactResponse)
-async def calculate_impact(
-    request: ImpactRequest,
-    authorization: Optional[str] = Header(None)
-):
+@router.get("/{bill_id}", response_model=ImpactResponse)
+async def get_bill_impact(bill_id: str):
     """
-    Calculate the personalized financial & compliance impact of a bill.
-    Loads the target bill from Supabase, resolves the business profile,
-    and returns a unified impact analysis. Does not persist calculated results.
-    Includes a 90-second execution timeout and thread pool offloading.
+    Retrieves the pre-generated example scenario or compliance checklist guide for a bill.
+    Looks up pre-computed impact data from tier_impact_cache (industry='ALL', tier_label='ALL').
+    If not cached, generates the impact data on-the-fly and caches it for future calls.
     """
-    # 0. Validate industry input
-    if request.industry not in INDUSTRIES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unknown industry '{request.industry}'. Must be one of: {', '.join(INDUSTRIES)}"
-        )
-
-    # 1. Resolve business profile (custom profile scoped to authenticated user, else predefined baseline)
-    profile = None
-    if request.use_custom_profile:
-        if authorization and supabase_admin:
-            token = authorization.replace("Bearer ", "").strip()
-            try:
-                user_res = supabase_admin.auth.get_user(token)
-                if user_res and user_res.user:
-                    user_id = user_res.user.id
-                    res = supabase_admin.table("user_profiles").select("*").eq("user_id", user_id).execute()
-                    if res.data and len(res.data) > 0:
-                        user_prof = res.data[0]
-                        profile = {
-                            "tier": user_prof.get("tier_label") or request.tier,
-                            "description": "Custom business profile",
-                            "metrics": user_prof.get("custom_metrics", {}),
-                            "compliance_baseline": user_prof.get("custom_metrics", {}).get("compliance_baseline", {})
-                        }
-            except Exception as err:
-                logger.warning(f"Failed to query custom profile for user token: {err}")
-
-        if not profile:
-            logger.warning(
-                f"Custom profile requested for bill '{request.bill_id}', but custom profile was not found "
-                "or valid authorization token was missing. Falling back to predefined tier baseline."
-            )
-
-    if not profile:
-        profile = get_hustle_profile(request.industry, request.tier)
-
-    # 2. Query bill from database
     bill_data = None
+    cached_impact = None
+
+    # 1. Check Supabase DB for cached impact
     if supabase_admin:
         try:
-            res = supabase_admin.table("bills").select("id, title, bill_type, ai_summary_en, regex_extractions, extracted_text").eq("id", request.bill_id).execute()
-            if res.data and len(res.data) > 0:
-                bill_data = res.data[0]
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Bill '{request.bill_id}' not found"
-                )
-        except HTTPException:
-            raise
+            # Query cache table first (<200ms lookup)
+            cache_res = (
+                supabase_admin.table("tier_impact_cache")
+                .select("impact_data")
+                .eq("bill_id", bill_id)
+                .eq("industry", "ALL")
+                .eq("tier_label", "ALL")
+                .execute()
+            )
+            if cache_res.data and len(cache_res.data) > 0:
+                cached_impact = cache_res.data[0].get("impact_data")
         except Exception as err:
-            logger.error(f"Error querying bill '{request.bill_id}' from database: {err}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database error while querying bill '{request.bill_id}'"
+            logger.warning(f"Error querying tier_impact_cache for bill '{bill_id}': {err}")
+
+        # Fetch bill details for metadata and pdf_url
+        try:
+            bill_res = (
+                supabase_admin.table("bills")
+                .select("id, title, bill_type, ai_summary_en, regex_extractions, extracted_text, source_url, pdf_storage_path")
+                .eq("id", bill_id)
+                .execute()
             )
-    else:
-        # Offline/mock test mode fallback gated by settings.TESTING or mock bill_id prefix
-        if getattr(settings, "TESTING", False) or request.bill_id.startswith("mock-"):
-            bill_data = {
-                "id": request.bill_id,
-                "title": "Mock Legislative Bill 2026",
-                "bill_type": "financial",
-                "ai_summary_en": "Mock summary for offline testing.",
-                "regex_extractions": [],
-                "extracted_text": "Mock extracted text."
-            }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database connection not available"
-            )
+            if bill_res.data and len(bill_res.data) > 0:
+                bill_data = bill_res.data[0]
+        except Exception as err:
+            logger.error(f"Error querying bill '{bill_id}' from database: {err}")
 
-    # 3. Compute impact analysis with 90-second timeout & event loop thread offloading
-    try:
-        impact_result = await asyncio.wait_for(
-            asyncio.to_thread(compute_financial_impact_analysis, bill_data, profile),
-            timeout=90.0
-        )
-        return impact_result
-    except asyncio.TimeoutError:
-        logger.error(f"Financial impact analysis timed out after 90s for bill '{request.bill_id}'")
+    # Fallback for offline / mock testing
+    if not bill_data and (getattr(settings, "TESTING", False) or bill_id.startswith("mock-")):
+        bill_data = {
+            "id": bill_id,
+            "title": "Mock Legislative Bill 2026",
+            "bill_type": "financial",
+            "ai_summary_en": "Mock legislative bill summary for testing.",
+            "regex_extractions": [],
+            "source_url": "https://example.com/mock.pdf",
+            "pdf_storage_path": None,
+        }
+
+    if not bill_data and not cached_impact:
         raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Our analysis engine is busy — please try again in a moment"
-        )
-    except Exception as err:
-        logger.error(f"Error computing impact analysis for bill '{request.bill_id}': {err}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to calculate financial impact analysis"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bill '{bill_id}' not found"
         )
 
+    # 2. If cached impact exists, format and return
+    if cached_impact:
+        if isinstance(cached_impact, dict):
+            # Ensure bill_id and title are attached if available
+            if bill_data:
+                cached_impact["bill_id"] = bill_data.get("id")
+                cached_impact["bill_title"] = bill_data.get("title")
+                cached_impact["pdf_url"] = bill_data.get("source_url") or bill_data.get("pdf_storage_path")
+            return ImpactResponse(**cached_impact)
 
+    # 3. If cache miss, generate pre-computed scenario and store in cache
+    impact_res = compute_financial_impact_analysis(bill_data or {"id": bill_id, "title": "Legislative Bill"})
+    if bill_data:
+        impact_res.pdf_url = bill_data.get("source_url") or bill_data.get("pdf_storage_path")
 
+    if supabase_admin and bill_data:
+        try:
+            impact_dict = impact_res.model_dump()
+            supabase_admin.table("tier_impact_cache").upsert({
+                "bill_id": bill_id,
+                "industry": "ALL",
+                "tier_label": "ALL",
+                "impact_data": impact_dict
+            }, on_conflict="bill_id, industry, tier_label").execute()
+            logger.info(f"Successfully cached impact scenario for bill '{bill_id}'")
+        except Exception as err:
+            logger.warning(f"Failed to upsert tier_impact_cache for bill '{bill_id}': {err}")
+
+    return impact_res

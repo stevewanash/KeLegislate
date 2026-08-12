@@ -48,12 +48,24 @@ class PenaltyRisk(BaseModel):
     severity: str  # 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
 
 # ==========================================
-# FINANCIAL IMPACT SCHEMAS
+# PRE-GENERATED REDESIGN IMPACT SCHEMAS (v1.3)
 # ==========================================
+class ScenarioPersona(BaseModel):
+    """Hypothetical persona profile for worked example scenarios."""
+    name: str
+    description: str
+    metrics: Dict[str, Any] = {}
+
+class ComplianceActionItem(BaseModel):
+    """Action item for regulatory compliance guides."""
+    action: str
+    deadline: str
+    source: str
+
 class ImpactRequest(BaseModel):
     bill_id: str
-    industry: str
-    tier: str
+    industry: Optional[str] = "ALL"
+    tier: Optional[str] = "ALL"
     use_custom_profile: bool = False
 
 class ImpactItem(BaseModel):
@@ -67,26 +79,37 @@ class ImpactItem(BaseModel):
 
 class ImpactResponse(BaseModel):
     """
-    Unified response for both financial impact and regulatory compliance analysis.
-    Fields are populated based on the bill's `bill_type`:
-    - financial: impact_table + net_monthly_impact populated
-    - regulatory: compliance_checklist + penalty_risks populated
-    - hybrid: all fields populated
+    Unified response for pre-generated example scenarios and compliance checklists.
+    Supports both legacy tier calculations and v1.3 pre-generated payloads.
     """
-    # Financial impact (present for financial/hybrid bills)
+    bill_id: Optional[str] = None
+    bill_title: Optional[str] = None
+    bill_type: Literal["financial", "regulatory", "hybrid"] = "financial"
+    concise_summary: Optional[str] = None
+    
+    # Financial Pre-generated Example Scenario
+    scenario_persona: Optional[ScenarioPersona] = None
+    key_figures: Optional[List[str]] = None
+    math_breakdown: Optional[List[str]] = None
+    calculator_formula: Optional[str] = None
+    
+    # Regulatory Compliance Checklist
+    regulatory_changes: Optional[List[str]] = None
+    compliance_checklist: Optional[List[ComplianceActionItem]] = None
+    
+    # Common Fields
+    sources: Optional[List[str]] = None
+    risk_level: str = "MEDIUM"  # 'LOW', 'MEDIUM', 'HIGH'
+    pdf_url: Optional[str] = None
+    verified: bool = True
+    disclaimer: Optional[str] = "This impact analysis is an automated estimate for informational purposes and does not constitute legal or tax advice."
+
+    # Legacy compatibility fields
     impact_table: Optional[List[ImpactItem]] = None
     net_monthly_impact: Optional[float] = None
-
-    # Compliance impact (present for regulatory/hybrid bills)
-    compliance_checklist: List[ComplianceItem] = []
     compliance_cost_total: Optional[float] = None
     penalty_risks: Optional[List[PenaltyRisk]] = None
 
-    # Common fields
-    bill_type: Literal["financial", "regulatory", "hybrid"] = "financial"
-    risk_level: str  # 'LOW', 'MEDIUM', 'HIGH'
-    verified: bool
-    disclaimer: Optional[str] = None
 
 # ==========================================
 # FEEDBACK SCHEMAS

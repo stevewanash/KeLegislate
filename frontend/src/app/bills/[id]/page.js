@@ -104,7 +104,7 @@ export default function BillDetailPage({ params }) {
           {lang === 'en' ? mockBill.summary_en : mockBill.summary_sw}
         </p>
 
-        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <a 
             href={mockBill.source_url} 
             target="_blank" 
@@ -112,6 +112,23 @@ export default function BillDetailPage({ params }) {
             style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}
           >
             View Original Official Bill Document (PDF)
+          </a>
+
+          <a
+            href={`/impact/${billId}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '0.6rem 1.2rem',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%)',
+              color: '#FFF',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              textDecoration: 'none'
+            }}
+          >
+            View Pre-Generated Impact & Calculator &rarr;
           </a>
         </div>
       </div>

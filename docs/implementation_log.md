@@ -619,6 +619,44 @@ AI_PROVIDER=deepseek
 - **Next Step**: Step 3.6 — Dedicated Financial Impact Analysis Page (`/dashboard` or `/impact`).
 
 
+## Redesign — v1.3 Alignment (Pre-generated Example Scenarios & Interactive Calculator)
+
+### What Was Done
+- **Pydantic Schemas & Models ([backend/app/models/schemas.py](file:///c:/git/KeLegislate/backend/app/models/schemas.py)):**
+  - Added models for `ScenarioPersona`, `ComplianceActionItem`, and updated `ImpactResponse` to support pre-generated worked example scenarios (`scenario_persona`, `key_figures`, `math_breakdown`, `calculator_formula`) and compliance guides (`regulatory_changes`, `compliance_checklist`).
+- **Financial Impact Agent ([backend/app/agents/impact_agent.py](file:///c:/git/KeLegislate/backend/app/agents/impact_agent.py)):**
+  - Refactored `compute_financial_impact_analysis` to generate pre-computed worked example scenarios for financial bills and compliance guides for regulatory bills using Gemini models.
+- **FastAPI Routing Scaffolding ([backend/app/api/impact.py](file:///c:/git/KeLegislate/backend/app/api/impact.py) & [backend/app/main.py](file:///c:/git/KeLegislate/backend/app/main.py)):**
+  - Replaced legacy `POST /api/impact` on-demand endpoint with instant `GET /api/impact/{bill_id}` route serving pre-computed payloads from `tier_impact_cache` table (<200ms DB lookup).
+  - Deferred custom profile router (`/api/profile`) post-buildathon in `main.py`.
+- **Database Seeding & Pipeline Automation ([backend/scripts/seed_bill.py](file:///c:/git/KeLegislate/backend/scripts/seed_bill.py)):**
+  - Updated seed pipeline to invoke the Financial Impact Agent upon seeding and cache pre-computed scenarios into `tier_impact_cache` (`industry='ALL'`, `tier_label='ALL'`).
+  - Granted privileges on `tier_impact_cache` table to `service_role`, `anon`, and `authenticated` roles in Supabase.
+- **Frontend Top-Level Impact Center ([frontend/src/app/impact/page.js](file:///c:/git/KeLegislate/frontend/src/app/impact/page.js)):**
+  - Built `/impact` list view featuring category dropdown filter (**All**, **Financial Bills**, **Regulatory Regulations**), displaying bill cards with summaries and risk badges.
+- **Frontend Dedicated Impact & Calculator View ([frontend/src/app/impact/[id]/page.js](file:///c:/git/KeLegislate/frontend/src/app/impact/%5Bid%5D/page.js)):**
+  - Built `/impact/[id]` detail page containing:
+    - Concise legislative summary & link to official PDF document.
+    - Worked Example Scenario Card (Persona details, key policy figures, step-by-step math breakdown).
+    - Client-Side Interactive Calculator (session-only in-browser evaluation with zero backend server calls or DB persistence).
+    - Compliance Checklist Guide Card (action items, deadlines, section sources).
+    - Citizen Feedback Stance Form with 1-step Phone OTP auth modal trigger for guest users.
+- **Header Navigation & Navigation Controls ([frontend/src/components/Header.jsx](file:///c:/git/KeLegislate/frontend/src/components/Header.jsx)):**
+  - Added **Impact & Calculators** (`/impact`) to top header menu bar.
+  - Scoped Phone OTP auth modal trigger strictly to guest feedback submission.
+- **Frontend API Client ([frontend/src/lib/api.js](file:///c:/git/KeLegislate/frontend/src/lib/api.js)):**
+  - Added `getImpact(billId)` calling `GET /api/impact/{bill_id}`.
+
+### Key Technical Details
+- **Zero-Latency In-Browser Calculator**: The frontend client calculator parses and evaluates `calculator_formula` pre-loaded from DB using dynamic client functions without network overhead.
+- **GDPR / KDPA Data Minimization**: Custom user financial metrics are never collected or stored on servers; all calculations occur strictly session-only in local memory.
+- **Database Cache Key**: `tier_impact_cache` uses `industry = 'ALL'` and `tier_label = 'ALL'` for bill-wide pre-computed worked example scenarios and compliance checklists.
+
+### Maintenance & Next Developer Guide
+- **Redesign v1.3 Complete**: All backend, schema, pipeline, seed scripts, and frontend views for the redesign are fully implemented and verified.
+
+
+
 
 
 

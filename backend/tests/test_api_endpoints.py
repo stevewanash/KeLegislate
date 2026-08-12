@@ -146,8 +146,31 @@ def test_get_bill_detail_404():
         assert "not found" in response.json()["detail"].lower()
 
 
-def test_post_impact_success():
+def test_get_impact_success():
     mock_supabase = MagicMock()
+    mock_cache_table = MagicMock()
+    mock_cache_table.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[
+            {
+                "impact_data": {
+                    "bill_type": "financial",
+                    "concise_summary": "Introduces a 2.5% motor vehicle circulation tax based on valuation.",
+                    "scenario_persona": {
+                        "name": "Mama Njeri",
+                        "description": "Transport operator",
+                        "metrics": {"vehicle_value": 800000}
+                    },
+                    "key_figures": ["2.5% Tax rate"],
+                    "math_breakdown": ["Annual Cost = KES 800,000 * 2.5% = KES 20,000"],
+                    "calculator_formula": "min(max(vehicle_value * 0.025, 5000), 100000)",
+                    "sources": ["Section 4"],
+                    "risk_level": "MEDIUM",
+                    "verified": True
+                }
+            }
+        ]
+    )
+
     mock_bills_table = MagicMock()
     mock_bills_table.select.return_value.eq.return_value.execute.return_value = MagicMock(
         data=[
@@ -155,172 +178,47 @@ def test_post_impact_success():
                 "id": "bill-100",
                 "title": "Finance Bill 2024",
                 "bill_type": "financial",
-                "ai_summary_en": "Summary text",
-                "regex_extractions": [],
-                "extracted_text": "Extracted text"
+                "source_url": "https://example.com/bill.pdf"
             }
         ]
-    )
-    mock_supabase.table.return_value = mock_bills_table
-
-    payload = {
-        "bill_id": "bill-100",
-        "industry": "Transport & Logistics",
-        "tier": "Tier 1 — BodaBoda Rider (Motorcycle)",
-        "use_custom_profile": False
-    }
-
-    with patch("app.api.impact.supabase_admin", mock_supabase), \
-         patch("app.api.impact.compute_financial_impact_analysis") as mock_compute:
-        
-        mock_compute.return_value = {
-            "impact_table": [
-                {
-                    "description": "Fuel Levy Increase",
-                    "base_kes": 12000.0,
-                    "change_kes": 1200.0,
-                    "period": "monthly",
-                    "section_ref": "Section 42",
-                    "math_breakdown": "12000 * 0.10 = 1200"
-                }
-            ],
-            "net_monthly_impact": -1200.0,
-            "compliance_checklist": [],
-            "compliance_cost_total": 0.0,
-            "penalty_risks": [],
-            "bill_type": "financial",
-            "risk_level": "MEDIUM",
-            "verified": True,
-            "disclaimer": "Test calculation"
-        }
-
-        response = client.post("/api/impact", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["bill_type"] == "financial"
-        assert data["net_monthly_impact"] == -1200.0
-        assert len(data["impact_table"]) == 1
-
-
-def test_post_impact_bill_not_found_404():
-    mock_supabase = MagicMock()
-    mock_bills_table = MagicMock()
-    mock_bills_table.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-    mock_supabase.table.return_value = mock_bills_table
-
-    payload = {
-        "bill_id": "missing-bill",
-        "industry": "Transport & Logistics",
-        "tier": "Tier 1",
-        "use_custom_profile": False
-    }
-
-    with patch("app.api.impact.supabase_admin", mock_supabase):
-        response = client.post("/api/impact", json=payload)
-        assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
-
-
-def test_post_impact_unknown_industry_400():
-    payload = {
-        "bill_id": "bill-100",
-        "industry": "Invalid Crypto Industry",
-        "tier": "Tier 1",
-        "use_custom_profile": False
-    }
-    response = client.post("/api/impact", json=payload)
-    assert response.status_code == 400
-    assert "unknown industry" in response.json()["detail"].lower()
-
-
-def test_post_impact_timeout_504():
-    import asyncio
-    mock_supabase = MagicMock()
-    mock_bills_table = MagicMock()
-    mock_bills_table.select.return_value.eq.return_value.execute.return_value = MagicMock(
-        data=[{"id": "bill-100", "title": "Bill", "bill_type": "financial", "ai_summary_en": "Summary", "regex_extractions": [], "extracted_text": "Text"}]
-    )
-    mock_supabase.table.return_value = mock_bills_table
-
-    payload = {
-        "bill_id": "bill-100",
-        "industry": "Transport & Logistics",
-        "tier": "Tier 1 — BodaBoda Rider (Motorcycle)",
-        "use_custom_profile": False
-    }
-
-    with patch("app.api.impact.supabase_admin", mock_supabase), \
-         patch("app.api.impact.asyncio.wait_for", side_effect=asyncio.TimeoutError):
-        response = client.post("/api/impact", json=payload)
-        assert response.status_code == 504
-        assert "busy" in response.json()["detail"].lower()
-
-
-def test_post_impact_db_unavailable_503():
-    payload = {
-        "bill_id": "production-bill-999",
-        "industry": "Transport & Logistics",
-        "tier": "Tier 1",
-        "use_custom_profile": False
-    }
-    with patch("app.api.impact.supabase_admin", None), \
-         patch("app.api.impact.settings.TESTING", False):
-        response = client.post("/api/impact", json=payload)
-        assert response.status_code == 503
-        assert "not available" in response.json()["detail"].lower()
-
-
-def test_post_impact_custom_profile_scoped():
-    mock_supabase = MagicMock()
-    mock_user = MagicMock()
-    mock_user.user.id = "user-uuid-123"
-    mock_supabase.auth.get_user.return_value = mock_user
-
-    mock_profile_table = MagicMock()
-    mock_profile_table.select.return_value.eq.return_value.execute.return_value = MagicMock(
-        data=[
-            {
-                "user_id": "user-uuid-123",
-                "tier_label": "Custom Tier",
-                "custom_metrics": {"vehicle_value_kes": 200000}
-            }
-        ]
-    )
-    mock_bills_table = MagicMock()
-    mock_bills_table.select.return_value.eq.return_value.execute.return_value = MagicMock(
-        data=[{"id": "bill-100", "title": "Bill", "bill_type": "financial", "ai_summary_en": "Summary", "regex_extractions": [], "extracted_text": "Text"}]
     )
 
     def table_router(name):
-        if name == "user_profiles":
-            return mock_profile_table
+        if name == "tier_impact_cache":
+            return mock_cache_table
         elif name == "bills":
             return mock_bills_table
         return MagicMock()
 
     mock_supabase.table.side_effect = table_router
 
-    payload = {
-        "bill_id": "bill-100",
-        "industry": "Transport & Logistics",
-        "tier": "Tier 1",
-        "use_custom_profile": True
-    }
-    headers = {"Authorization": "Bearer valid-user-jwt-token"}
-
-    with patch("app.api.impact.supabase_admin", mock_supabase), \
-         patch("app.api.impact.compute_financial_impact_analysis") as mock_compute:
-        mock_compute.return_value = {
-            "impact_table": [],
-            "net_monthly_impact": 0.0,
-            "compliance_checklist": [],
-            "compliance_cost_total": 0.0,
-            "penalty_risks": [],
-            "bill_type": "financial",
-            "risk_level": "LOW",
-            "verified": True
-        }
-        response = client.post("/api/impact", json=payload, headers=headers)
+    with patch("app.api.impact.supabase_admin", mock_supabase):
+        response = client.get("/api/impact/bill-100")
         assert response.status_code == 200
-        mock_supabase.auth.get_user.assert_called_once_with("valid-user-jwt-token")
+        data = response.json()
+        assert data["bill_type"] == "financial"
+        assert data["scenario_persona"]["name"] == "Mama Njeri"
+        assert data["calculator_formula"] == "min(max(vehicle_value * 0.025, 5000), 100000)"
 
+
+def test_get_impact_bill_not_found_404():
+    mock_supabase = MagicMock()
+    mock_cache_table = MagicMock()
+    mock_cache_table.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+    mock_bills_table = MagicMock()
+    mock_bills_table.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+
+    def table_router(name):
+        if name == "tier_impact_cache":
+            return mock_cache_table
+        elif name == "bills":
+            return mock_bills_table
+        return MagicMock()
+
+    mock_supabase.table.side_effect = table_router
+
+    with patch("app.api.impact.supabase_admin", mock_supabase):
+        response = client.get("/api/impact/missing-bill")
+        assert response.status_code == 404
+
+        assert "not found" in response.json()["detail"].lower()

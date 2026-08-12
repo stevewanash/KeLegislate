@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import bills, impact, feedback, subscribe, profile, dashboard, webhooks, admin
+from app.api import bills, impact, feedback, subscribe, dashboard, webhooks, admin
+# Note: profile router deferred post-buildathon per redesign.md
+
 
 app = FastAPI(
     title="KeLegislate API",
@@ -27,7 +29,8 @@ app.include_router(bills.router, prefix="/api")
 app.include_router(impact.router, prefix="/api")
 app.include_router(feedback.router, prefix="/api")
 app.include_router(subscribe.router, prefix="/api")
-app.include_router(profile.router, prefix="/api")
+# app.include_router(profile.router, prefix="/api")  # Deferred post-buildathon
+
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(webhooks.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")

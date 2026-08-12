@@ -17,7 +17,7 @@ async def get_bills(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     industry: Optional[str] = None,
-    ai_status: Optional[str] = Query("translated", description="Filter by ai_status (use 'all' to disable filter)")
+    ai_status: Optional[str] = Query("all", description="Filter by ai_status (use 'all' to disable filter)")
 ):
     """
     Get a paginated list of analyzed bills, optionally filtered by industry tag and processing status.
@@ -138,10 +138,10 @@ async def get_bills(
         )
 
     except Exception as err:
-        logger.error(f"Error querying bills list: {err}")
+        logger.error(f"Error querying bills list: {err}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error while listing bills"
+            detail=f"Database error while listing bills: {str(err)}"
         )
 
 

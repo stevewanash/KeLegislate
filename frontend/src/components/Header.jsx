@@ -59,8 +59,11 @@ export default function Header() {
             <a href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>
               Home
             </a>
-            <a href="/bills" className={`nav-link ${pathname?.startsWith('/bills') ? 'active' : ''}`}>
+            <a href="/bills" className={`nav-link ${pathname === '/bills' ? 'active' : ''}`}>
               Browse Bills
+            </a>
+            <a href="/impact" className={`nav-link ${pathname?.startsWith('/impact') ? 'active' : ''}`}>
+              Impact & Calculators
             </a>
             <a href="/subscribe" className={`nav-link ${pathname === '/subscribe' ? 'active' : ''}`}>
               Subscribe
@@ -71,7 +74,7 @@ export default function Header() {
           </nav>
 
           <div className="header-controls" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {user ? (
+            {user && (
               <div className="user-profile-pill">
                 <span>{formatUserPhone(user.phone)}</span>
                 <button 
@@ -83,16 +86,9 @@ export default function Header() {
                   Sign Out
                 </button>
               </div>
-            ) : (
-              <button 
-                className="login-nav-btn" 
-                type="button"
-                onClick={() => setAuthModalOpen(true)}
-              >
-                Sign In
-              </button>
             )}
           </div>
+
         </div>
       </header>
 

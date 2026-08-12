@@ -203,6 +203,29 @@ async def seed_single_bill(bill_config: dict, local_data_dir: Path, is_supabase_
                 bill_id = insert_res.data[0]["id"]
                 print(f"Seeded new bill (ID: {bill_id})")
             print("Database operation completed successfully!")
+
+            # 5. Pre-generate & cache example scenario/checklist in tier_impact_cache
+            print("Pre-generating example scenario/checklist for bill...")
+            try:
+                from app.agents.impact_agent import compute_financial_impact_analysis
+                bill_record = {
+                    "id": bill_id,
+                    "title": title,
+                    "bill_type": bill_type,
+                    "extracted_text": extracted_text[:4000],
+                    "source_url": url,
+                }
+                impact_res = compute_financial_impact_analysis(bill_record)
+                impact_dict = impact_res.model_dump()
+                supabase_admin.table("tier_impact_cache").upsert({
+                    "bill_id": bill_id,
+                    "industry": "ALL",
+                    "tier_label": "ALL",
+                    "impact_data": impact_dict
+                }, on_conflict="bill_id, industry, tier_label").execute()
+                print("Pre-generated impact scenario cached in tier_impact_cache successfully!")
+            except Exception as e:
+                print(f"Warning: Failed to cache impact scenario: {e}")
         except Exception as e:
             print(f"Failed to insert into Supabase database: {e}")
             print("Please check your database connection or SQL migrations.")

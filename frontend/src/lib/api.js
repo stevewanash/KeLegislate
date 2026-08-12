@@ -36,7 +36,7 @@ async function fetchJson(endpoint, options = {}) {
 export const api = {
   // Bills API
   async getBills(page = 1, limit = 20, industry = null) {
-    let query = `?page=${page}&limit=${limit}`;
+    let query = `?page=${page}&limit=${limit}&ai_status=all`;
     if (industry) query += `&industry=${encodeURIComponent(industry)}`;
     return fetchJson(`/bills${query}`);
   },
@@ -45,20 +45,16 @@ export const api = {
     return fetchJson(`/bills/${id}`);
   },
 
-  // Impact Calculator API
-  async calculateImpact(billId, industry, tier, useCustomProfile = false, token = null) {
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    return fetchJson('/impact', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        bill_id: billId,
-        industry,
-        tier,
-        use_custom_profile: useCustomProfile,
-      }),
-    });
+  // Pre-generated Impact Scenario API (v1.3)
+  async getImpact(billId) {
+    return fetchJson(`/impact/${billId}`);
   },
+
+  // Legacy calculateImpact fallback
+  async calculateImpact(billId, industry = 'ALL', tier = 'ALL', useCustomProfile = false, token = null) {
+    return fetchJson(`/impact/${billId}`);
+  },
+
 
   // Feedback API (Auth Required)
   async submitFeedback(billId, support, rating, concerns = null, token) {
