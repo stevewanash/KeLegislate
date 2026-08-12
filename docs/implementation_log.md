@@ -619,7 +619,7 @@ AI_PROVIDER=deepseek
 - **Next Step**: Step 3.6 — Dedicated Financial Impact Analysis Page (`/dashboard` or `/impact`).
 
 
-## Redesign — v1.3 Alignment (Pre-generated Example Scenarios & Interactive Calculator)
+## Redesign — v1.3 Alignment (Pre-generated Example Scenarios & Interactive Calculator) - Covers step 3.6-3.8 and step 4.7
 
 ### What Was Done
 - **Pydantic Schemas & Models ([backend/app/models/schemas.py](file:///c:/git/KeLegislate/backend/app/models/schemas.py)):**
@@ -647,13 +647,25 @@ AI_PROVIDER=deepseek
 - **Frontend API Client ([frontend/src/lib/api.js](file:///c:/git/KeLegislate/frontend/src/lib/api.js)):**
   - Added `getImpact(billId)` calling `GET /api/impact/{bill_id}`.
 
+- **Bill Selection Cleanup & Database Purge:**
+  - Deleted non-existent standalone Motor Vehicle Circulation Tax Bill from Supabase database.
+  - Restricted bill selection strictly to *The Finance Bill, 2024* (financial) and *Nairobi Motorcycle Taxi (Boda Boda) Permit Regulations 2025* (regulatory).
+- **Boda Boda Transport Persona & Constraint Enforcement ([backend/app/agents/impact_agent.py](file:///c:/git/KeLegislate/backend/app/agents/impact_agent.py)):**
+  - Updated AI system instructions and fallback responses to strictly generate worked example scenarios for **Boda Boda Operators** (motorcycle baseline KES 150,000, 150cc motorcycle).
+  - Enforced removal of personal names (e.g. "Mama Njeri", "Amani") in favor of role-based descriptions ("Boda Boda Operator").
+  - Stripped all emojis from AI system prompts, API payload responses, and UI component views.
+- **Frontend Theme & Layout Alignment ([frontend/src/app/impact/page.js](file:///c:/git/KeLegislate/frontend/src/app/impact/page.js) & [frontend/src/app/impact/[id]/page.js](file:///c:/git/KeLegislate/frontend/src/app/impact/%5Bid%5D/page.js)):**
+  - Aligned `/impact` list page and `/impact/[id]` detail page to strictly follow the application light theme design system (`var(--bg-main)`, `.content-card`, `.badge-neutral`, `var(--text-primary)`, `var(--primary)`), removing standalone dark mode wrappers.
+
 ### Key Technical Details
 - **Zero-Latency In-Browser Calculator**: The frontend client calculator parses and evaluates `calculator_formula` pre-loaded from DB using dynamic client functions without network overhead.
 - **GDPR / KDPA Data Minimization**: Custom user financial metrics are never collected or stored on servers; all calculations occur strictly session-only in local memory.
 - **Database Cache Key**: `tier_impact_cache` uses `industry = 'ALL'` and `tier_label = 'ALL'` for bill-wide pre-computed worked example scenarios and compliance checklists.
+- **Single-Industry Target Scope**: Scoped all hypothetical financial worked examples strictly to Boda Boda transport operators operating 150cc commercial motorcycles.
 
 ### Maintenance & Next Developer Guide
-- **Redesign v1.3 Complete**: All backend, schema, pipeline, seed scripts, and frontend views for the redesign are fully implemented and verified.
+- **Redesign v1.3 Complete**: All backend, schema, pipeline, seed scripts, Boda Boda persona rules, database cleanup, and light-theme UI views for the redesign are 100% completed and verified.
+
 
 
 

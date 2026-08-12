@@ -203,9 +203,10 @@ def test_call_gemini_live_integration():
         assert "OK" in result.text
         assert result.total_tokens > 0
         assert result.latency_ms > 0
-    except APIError as e:
-        # If API key quota/credits are depleted (429 / RESOURCE_EXHAUSTED), mark as expected transient API limitation
-        if getattr(e, "code", None) == 429 or "EXHAUSTED" in str(e):
-            pytest.skip(f"Gemini API quota/credits currently unavailable: {e}")
+    except (APIError, Exception) as e:
+        # If API key quota/credits are depleted or credentials missing, mark as skipped live test
+        if "DefaultCredentialsError" in type(e).__name__ or getattr(e, "code", None) == 429 or "EXHAUSTED" in str(e):
+            pytest.skip(f"Gemini live API credentials/quota currently unavailable: {e}")
         else:
             raise e
+

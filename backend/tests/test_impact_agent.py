@@ -4,11 +4,9 @@ from unittest.mock import patch, MagicMock
 
 from app.agents.impact_agent import (
     compute_financial_impact_analysis,
-    compute_financial_impact,
-    _verify_and_recalculate_math,
 )
-from app.agents.gemini_client import GeminiResponse
-from app.models.schemas import ImpactResponse, ImpactItem, ComplianceItem, PenaltyRisk
+from app.agents.llm_client import GeminiResponse
+from app.models.schemas import ImpactResponse, ScenarioPersona, ComplianceActionItem
 from app.models.hustle_profiles import HUSTLE_PROFILES
 
 
@@ -57,17 +55,15 @@ def test_compute_financial_impact_financial_bill(sample_financial_bill, sample_b
     """Test computing financial impact analysis for a financial bill."""
     mock_impact = ImpactResponse(
         bill_type="financial",
-        impact_table=[
-            ImpactItem(
-                description="Motor Vehicle Tax (2.5% of KES 150,000)",
-                base_kes=150000.0,
-                change_kes=3750.0,
-                period="annual",
-                section_ref="Section 42",
-                math_breakdown="150000 * 0.025",
-            )
-        ],
-        net_monthly_impact=312.5,
+        scenario_persona=ScenarioPersona(
+            name="Boda Boda Operator",
+            description="Operator of a 150cc commercial motorcycle valued at KES 150,000.",
+            metrics={"vehicle_value": 150000.0},
+        ),
+        concise_summary="Introduces 2.5% motor vehicle tax.",
+        key_figures=["2.5% Motor vehicle tax"],
+        math_breakdown=["Annual tax: KES 150,000 * 2.5% = KES 3,750"],
+        calculator_formula="vehicle_value * 0.025",
         risk_level="MEDIUM",
         verified=True,
         disclaimer="Test disclaimer",
@@ -89,30 +85,21 @@ def test_compute_financial_impact_financial_bill(sample_financial_bill, sample_b
         assert isinstance(res, ImpactResponse)
         assert res.bill_type == "financial"
         assert res.risk_level == "MEDIUM"
-        assert len(res.impact_table) == 1
-        assert res.impact_table[0].change_kes == 3750.0
-        assert res.net_monthly_impact == 312.5
+        assert res.scenario_persona.name == "Boda Boda Operator"
+        assert res.calculator_formula == "vehicle_value * 0.025"
 
 
 def test_compute_financial_impact_regulatory_bill(sample_regulatory_bill, sample_bodaboda_profile):
     """Test computing compliance advice for a regulatory bill."""
     mock_impact = ImpactResponse(
         bill_type="regulatory",
+        concise_summary="Mandates annual county permit and safety training.",
+        regulatory_changes=["Annual county operating permit required"],
         compliance_checklist=[
-            ComplianceItem(
-                requirement="Obtain annual boda boda operating permit",
-                status="required",
-                deadline="2026-06-30",
-                estimated_cost_kes=3000.0,
-                penalty_for_non_compliance="Impoundment of motorcycle and KES 10,000 fine",
-            )
-        ],
-        compliance_cost_total=3000.0,
-        penalty_risks=[
-            PenaltyRisk(
-                violation="Operating without valid county permit badge",
-                penalty="KES 10,000 fine",
-                severity="HIGH",
+            ComplianceActionItem(
+                action="Obtain annual boda boda operating permit badge",
+                deadline="Within 90 days",
+                source="Section 3(1)",
             )
         ],
         risk_level="HIGH",
@@ -135,74 +122,32 @@ def test_compute_financial_impact_regulatory_bill(sample_regulatory_bill, sample
         assert isinstance(res, ImpactResponse)
         assert res.bill_type == "regulatory"
         assert len(res.compliance_checklist) == 1
-        assert res.compliance_checklist[0].estimated_cost_kes == 3000.0
-        assert res.compliance_cost_total == 3000.0
-        assert len(res.penalty_risks) == 1
-
-
-def test_verify_and_recalculate_math():
-    """Test AST math breakdown recalculation helper."""
-    impact_obj = ImpactResponse(
-        bill_type="financial",
-        impact_table=[
-            ImpactItem(
-                description="Item 1",
-                base_kes=100.0,
-                change_kes=0.0,
-                period="monthly",
-                section_ref="Sec 1",
-                math_breakdown="12000 / 12",
-            ),
-            ImpactItem(
-                description="Item 2",
-                base_kes=500.0,
-                change_kes=0.0,
-                period="annual",
-                section_ref="Sec 2",
-                math_breakdown="6000 * 0.1",
-            ),
-        ],
-        net_monthly_impact=0.0,
-        risk_level="LOW",
-        verified=True,
-    )
-
-    _verify_and_recalculate_math(impact_obj)
-
-    # Item 1: 12000 / 12 = 1000.0 monthly
-    assert impact_obj.impact_table[0].change_kes == 1000.0
-    # Item 2: 6000 * 0.1 = 600.0 annual -> 50.0 monthly
-    assert impact_obj.impact_table[1].change_kes == 600.0
-
-    # Total net monthly = 1000.0 + 50.0 = 1050.0
-    assert impact_obj.net_monthly_impact == 1050.0
+        assert res.compliance_checklist[0].source == "Section 3(1)"
 
 
 def test_compute_financial_impact_call_gemini_exception(sample_financial_bill, sample_bodaboda_profile):
-    """Test handling when call_gemini raises an exception (Issue 1 fix)."""
+    """Test handling when call_gemini raises an exception."""
     with patch("app.agents.impact_agent.call_gemini", side_effect=RuntimeError("API 403 Forbidden")):
         res = compute_financial_impact_analysis(sample_financial_bill, sample_bodaboda_profile)
         assert isinstance(res, ImpactResponse)
         assert res.bill_type == "financial"
-        assert res.risk_level == "LOW"
+        assert res.risk_level == "MEDIUM"
         assert res.verified is True
 
 
 def test_compute_financial_impact_text_json_fallback(sample_financial_bill, sample_bodaboda_profile):
-    """Test JSON text parsing fallback when response.parsed is None (Issue 5 fix)."""
+    """Test JSON text parsing fallback when response.parsed is None."""
     raw_json = json.dumps({
         "bill_type": "financial",
-        "impact_table": [
-            {
-                "description": "Tax change",
-                "base_kes": 1000.0,
-                "change_kes": 200.0,
-                "period": "monthly",
-                "section_ref": "Section 3",
-                "math_breakdown": "1000 * 0.2"
-            }
-        ],
-        "net_monthly_impact": 200.0,
+        "scenario_persona": {
+            "name": "Boda Boda Operator",
+            "description": "Rider baseline",
+            "metrics": {"vehicle_value": 150000.0}
+        },
+        "concise_summary": "Summary text",
+        "key_figures": ["2.5% tax"],
+        "math_breakdown": ["Calculation"],
+        "calculator_formula": "vehicle_value * 0.025",
         "risk_level": "MEDIUM",
         "verified": True,
         "disclaimer": "JSON text test"
@@ -218,12 +163,11 @@ def test_compute_financial_impact_text_json_fallback(sample_financial_bill, samp
         res = compute_financial_impact_analysis(sample_financial_bill, sample_bodaboda_profile)
         assert isinstance(res, ImpactResponse)
         assert res.bill_type == "financial"
-        assert res.net_monthly_impact == 200.0
         assert res.risk_level == "MEDIUM"
 
 
 def test_compute_financial_impact_malformed_json(sample_financial_bill, sample_bodaboda_profile):
-    """Test fallback when response.parsed is None and response.text is malformed JSON (Issue 5 fix)."""
+    """Test fallback when response.parsed is None and response.text is malformed JSON."""
     with patch("app.agents.impact_agent.call_gemini") as mock_call:
         mock_call.return_value = GeminiResponse(
             text="Invalid JSON String {bad",
@@ -233,30 +177,7 @@ def test_compute_financial_impact_malformed_json(sample_financial_bill, sample_b
         res = compute_financial_impact_analysis(sample_financial_bill, sample_bodaboda_profile)
         assert isinstance(res, ImpactResponse)
         assert res.bill_type == "financial"
-        assert res.risk_level == "LOW"
-
-
-def test_verify_and_recalculate_math_discrepancy_warnings(caplog):
-    """Test warning logging when LLM values differ from recalculated values (Issues 2 & 3 fix)."""
-    impact_obj = ImpactResponse(
-        bill_type="regulatory",
-        compliance_checklist=[
-            ComplianceItem(
-                requirement="Safety training",
-                status="required",
-                estimated_cost_kes=1500.0,
-            )
-        ],
-        compliance_cost_total=5000.0,  # Hallucinated LLM value vs 1500.0 recalculated
-        risk_level="MEDIUM",
-        verified=True,
-    )
-
-    with caplog.at_level("WARNING"):
-        _verify_and_recalculate_math(impact_obj)
-
-    assert impact_obj.compliance_cost_total == 1500.0
-    assert "LLM compliance_cost_total (5000.0) differs from recalculated (1500.0)" in caplog.text
+        assert res.risk_level == "MEDIUM"
 
 
 def test_compute_financial_impact_fallback(sample_financial_bill, sample_bodaboda_profile):
@@ -269,22 +190,4 @@ def test_compute_financial_impact_fallback(sample_financial_bill, sample_bodabod
         assert isinstance(res, ImpactResponse)
         assert res.bill_type == "financial"
         assert res.verified is True
-        assert res.risk_level == "LOW"
-
-
-@pytest.mark.asyncio
-async def test_async_compute_financial_impact(sample_bodaboda_profile):
-    """Test async compute_financial_impact wrapper."""
-    mock_impact = ImpactResponse(
-        bill_type="financial",
-        impact_table=[],
-        net_monthly_impact=0.0,
-        risk_level="LOW",
-        verified=True,
-    )
-
-    with patch("app.agents.impact_agent.call_gemini") as mock_call:
-        mock_call.return_value = GeminiResponse(parsed=mock_impact)
-        res = await compute_financial_impact("bill-test-async", sample_bodaboda_profile)
-        assert isinstance(res, ImpactResponse)
-        assert res.bill_type == "financial"
+        assert res.risk_level == "MEDIUM"

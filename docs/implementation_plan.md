@@ -491,7 +491,7 @@ When a user clicks on a **financial bill** in the Impact section, they see a con
   - **Link to original bill PDF**.
   - **Feedback form (bottom of page)**:
     - Same `FeedbackForm` component as the bill summary page (Support/Oppose/Neutral, star rating, concerns).
-    - Auth-gated identically — login prompt if not authenticated, form if authenticated.
+    - Auth-gated identically — when subscribe is clicked otp authentication prompt if not authenticated, submit after authentication.
     - Shares the same `POST /api/feedback` endpoint and `UNIQUE(bill_id, user_id)` deduplication.
 
 ### Step 3.8 — Impact Detail Page (Regulatory Bills)
@@ -516,24 +516,23 @@ When a user clicks on a **regulatory bill** in the Impact section, they see a co
 
 - Build the app shell:
   - Mobile and desktop top navigation bar.
-  - Navigation items: **Bills**, **Impact**, **Dashboard**, **Subscribe**.
-  - Auth state indicator ("Sign In" / user phone number display) — only triggers login when user attempts to submit feedback.
+  - Navigation items: **Home**, **Bills**, **Impact**, **Dashboard**, **Subscribe**.
   - Responsive breakpoints working correctly.
   - Page transitions (subtle fade or slide).
 
 ### Phase 3 Exit Criteria
 
-- [ ] Phone OTP login works end-to-end (frontend → Supabase Auth → JWT) — triggered from feedback form.
-- [ ] Auth middleware validates tokens on protected endpoints (`POST /api/feedback`, subscription endpoints).
-- [ ] Landing page renders with hero, stats, and CTAs (Bills, Impact, Alerts).
-- [ ] Bill list page fetches and displays two demo bills from the API with tag filtering.
-- [ ] Bill summary page (`/bills/[id]`) shows English/Swahili summary with language toggle and feedback form.
-- [ ] Impact bill list page (`/impact`) shows bills with financial/regulatory filter dropdown.
-- [ ] Impact detail page (`/impact/[id]`) shows example scenario for financial bills with math breakdown.
-- [ ] Impact detail page (`/impact/[id]`) shows compliance checklist for regulatory bills.
-- [ ] Both impact detail pages include PDF link and auth-gated feedback form.
-- [ ] Responsive layout works on mobile (375px) and desktop (1024px).
-- [ ] Merge `phase-3/core-webapp-auth` → `develop`.
+- [x] Phone OTP login works end-to-end (frontend → Supabase Auth → JWT) — triggered from feedback form.
+- [x] Auth middleware validates tokens on protected endpoints (`POST /api/feedback`, subscription endpoints).
+- [x] Landing page renders with hero, stats, and CTAs (Bills, Impact, Alerts).
+- [x] Bill list page fetches and displays two demo bills from the API with tag filtering.
+- [x] Bill summary page (`/bills/[id]`) shows English/Swahili summary with language toggle and feedback form.
+- [x] Impact bill list page (`/impact`) shows bills with financial/regulatory filter dropdown.
+- [x] Impact detail page (`/impact/[id]`) shows example scenario for financial bills with math breakdown.
+- [x] Impact detail page (`/impact/[id]`) shows compliance checklist for regulatory bills.
+- [x] Both impact detail pages include PDF link and auth-gated feedback form.
+- [x] Responsive layout works on mobile (375px) and desktop (1024px).
+- [x] Merge `phase-3/core-webapp-auth` → `develop`.
 
 ---
 
