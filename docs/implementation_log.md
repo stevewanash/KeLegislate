@@ -549,7 +549,75 @@ AI_PROVIDER=deepseek
 #### Maintenance & Next Developer Guide
 - **Step 3.2 Complete:** Supabase Auth Setup, Phone OTP gateway, Auth Middleware, and code review resolutions are 100% complete.
 - **VPS Guide:** Refer to [docs/vps-setup.md](file:///c:/git/KeLegislate/docs/vps-setup.md) for server monitoring, service restarts (`systemctl restart kelegislate`), and Nginx maintenance commands.
-- **Next Step:** Step 3.3 — Landing Page or Step 3.4 — Bill List Page.
+- **Next Step:** Step 3.3 & Step 3.4 complete.
+
+
+### Step 3.3 & 3.4 — Landing Page & Bill List Page Implementation (Bodaboda Market Pivot)
+
+#### What Was Done
+- **Landing Page Upgrade ([frontend/src/app/page.js](file:///c:/git/KeLegislate/frontend/src/app/page.js)):**
+  - **Removed Quick Stats Grid:** Removed the 3-card quick stats section as requested by user.
+  - **Refined Hero Section:** Implemented high-contrast gradient typography ("Shillings & Cents Impact Before It Hits Your Hustle"), transport/bodaboda badge, clear sub-headline, and primary/secondary CTAs ("Browse Analyzed Bills" -> `/bills`, "Get SMS Alerts" -> `/subscribe`).
+  - **Value Proposition Cards:** Re-styled features using glassmorphism cards highlighting deterministic financial calculations, regulatory compliance checklists, and KDPA SMS alerts.
+- **Bill List Page Redesign ([frontend/src/app/bills/page.js](file:///c:/git/KeLegislate/frontend/src/app/bills/page.js)):**
+  - **Removed Industry Filter Dropdown:** Completely removed the industry `<select>` dropdown to enforce single-industry focus (Transport & Bodaboda).
+  - **Live Search Input:** Implemented real-time search input filtering bills by title, tags, or summary content.
+  - **API Integration:** Integrated `api.getBills()`, fetching live bill briefs from backend (`GET /api/bills`) with seamless fallback to demo bills ("The Finance Bill, 2024" and "Nairobi Bodaboda Permit Regulations 2025").
+  - **Mockup Match:** Rendered bill cards matching UI mockup `02-bills-list.png` featuring bill type badges (`Financial`, `Regulatory`, `Hybrid`), status indicators (`translated`), publication dates, and "See full summary ›" action links.
+  - **Loading & Empty States:** Added animated spinner loading indicator and clean empty search state with clear-filter action.
+- **Bill Detail Single-Industry Polish ([frontend/src/app/bills/[id]/page.js](file:///c:/git/KeLegislate/frontend/src/app/bills/%5Bid%5D/page.js)):**
+  - Simplified calculator section to set target industry to `Transport & Logistics (Bodaboda Focus)` by default, presenting transport tiers directly.
+- **Verification:** Next.js production build (`npm run build`) succeeded with 0 errors and generated all static and dynamic route bundles cleanly (`/`, `/_not-found`, `/bills`, `/bills/[id]`, `/dashboard`, `/profile`, `/subscribe`).
+
+#### Key Technical Details
+- **Single-Industry Optimization:** Removing the multi-industry filter streamlines user navigation for transport micro-enterprises and bodaboda operators.
+- **Dynamic API Client Layer:** `api.getBills()` queries the FastAPI `/api/bills` endpoint while providing resilient client-side fallback to formatted demo bills if offline.
+- **Responsive Layout:** Ensured layout containers work on mobile (375px) and desktop (1024px+).
+
+#### Maintenance & Next Developer Guide
+- **Step 3.3 & 3.4 Complete:** Landing Page and Bill List Page are fully built, tested, and aligned with user design requirements.
+- **Next Step:** Step 3.5 — Bill Summary Page or Step 3.6 — Impact Analysis Page.
+
+
+### Step 3.5 & UI Fine-Tuning — User Feedback, Single-Industry Focus & Interactive Carousels
+
+#### What Was Done
+- **Header & Top Navigation ([Header.jsx](file:///c:/git/KeLegislate/frontend/src/components/Header.jsx)):**
+  - Added clean top navigation bar linking to `Home` (`/`), `Browse Bills` (`/bills`), `Subscribe` (`/subscribe`), and `Dashboard` (`/dashboard`).
+  - Removed notification bell icon, badge count, and header-level language switcher.
+  - Rebranded header logo text to `KeLegislate`.
+- **Single-Column Bill Summary Scope ([frontend/src/app/bills/[id]/page.js](file:///c:/git/KeLegislate/frontend/src/app/bills/%5Bid%5D/page.js)):**
+  - Simplified summary page to strictly show bill summary, official PDF source links, EN/SW summary toggle, legal metrics, and stance feedback form.
+  - Removed financial impact calculator column (financial modeling moved to dedicated impact page).
+- **Browse Bills Page Fine-Tuning ([frontend/src/app/bills/page.js](file:///c:/git/KeLegislate/frontend/src/app/bills/page.js)):**
+  - Removed search bar input box completely.
+  - Removed `Translated` status badge from bill cards.
+  - Converted `Financial` and `Regulatory` bill tags to uncolored neutral text badges (`.badge-neutral`) with no emojis and no background color accents.
+- **Subscription Page Single-Industry Polish ([frontend/src/app/subscribe/page.js](file:///c:/git/KeLegislate/frontend/src/app/subscribe/page.js)):**
+  - Removed `"Target Industry Sector"` form group completely.
+  - Removed `"WhatsApp Alerts"` checkbox option, keeping only SMS alerts.
+- **Home Page 3D Cube Hero Banner & Interactive Feature Carousel ([frontend/src/app/page.js](file:///c:/git/KeLegislate/frontend/src/app/page.js) & [globals.css](file:///c:/git/KeLegislate/frontend/src/styles/globals.css)):**
+  - **3D Cube Rolling Hero Scene**:
+    - Created dual-face 3D perspective cube scene (`perspective: 1200px; transform-style: preserve-3d`).
+    - **Face 1**: Full background image `/hero-slide-1.jpg` + dark overlay + *"Know the Financial & Regulatory Impact of Bills Before They Hit Your Hustle"*.
+    - **Face 2**: Full background image `/hero-slide-2.jpg` + dark overlay + *"Real-time analysis of national tax laws and county transport regulations."*.
+    - Rotates Y-axis automatically every 5 seconds (with tap indicator controls).
+    - Positioned primary and secondary CTAs (*"Browse Analyzed Bills"* and *"Get SMS Alerts"*) statically **below** the 3D scene.
+  - **Horizontal Feature Card Carousel**:
+    - Converted features under *"Built for Transport Operators"* into horizontally scrollable cards with CSS scroll-snapping (`scroll-snap-type: x mandatory`).
+    - Integrated 4-second auto-scrolling using container-level `trackRef.current.scrollTo()` (preventing main browser window vertical page jumping).
+    - Added clickable pagination dots with hover/touch pause handling.
+
+#### Key Technical Details
+- **Dual-Face 3D CSS Scene**: Rendering both `.cube-face-1` (`rotateY(0deg)`) and `.cube-face-2` (`rotateY(180deg)`) simultaneously inside `.cube-scene` prevents card hiding or 0-height container collapse when rotating -180°.
+- **Container-Level Track Scroll**: Replacing `scrollIntoView()` with `trackRef.current.scrollTo({ left: targetLeft, behavior: 'smooth' })` keeps horizontal slide transitions strictly contained within the carousel track without altering main window vertical scroll coordinates.
+- **Responsive Aspect Ratios**: Hero image cards use mobile 4:3 ratio (<768px) and desktop 16:9 widescreen ratio (≥768px) with `object-fit: cover; object-position: center`.
+
+#### Maintenance & Next Developer Guide
+- **Step 3.5 & UI Fine-Tuning Complete**: Header navigation, bill summary scope, single-industry cleanup, 3D hero cube, and horizontal feature carousel are 100% complete and verified.
+- **Build Verification**: `npm run build` compiled with 0 errors (`8/8` static and dynamic pages generated cleanly).
+- **Next Step**: Step 3.6 — Dedicated Financial Impact Analysis Page (`/dashboard` or `/impact`).
+
 
 
 

@@ -1,8 +1,8 @@
 # KeLegislate — Project Implementation Plan
 
-> **Version**: 1.2 — Updated to move auth earlier (feedback integrity + custom profiles), add LlamaParse extraction, and restructure phase ordering per approved architectural concerns.
+> **Version**: 1.3 — Updated to redesign Impact page (example scenarios + interactive calculator instead of personalized impact), defer custom profiles and login to post-buildathon, reduce auth scope to feedback-only OTP gating. Retains LlamaParse extraction and phase ordering from v1.2.
 
-> **Philosophy**: Get a working end-to-end system first, then harden it. A base product that ingests a bill, summarizes it, sends alerts, takes feedback, and shows insights — running on the new tech stack — is worth more than a half-built perfect architecture.
+> **Philosophy**: Get a working end-to-end system first, then harden it. A base product that ingests a bill, summarizes it, sends alerts, takes feedback, and shows insights — running on the new tech stack — is worth more than a half-built perfect architecture. The Impact page communicates the math through hypothetical example scenarios and an interactive calculator, avoiding the need for user data collection while still delivering practical value.
 
 ---
 
@@ -15,8 +15,8 @@ main (protected — always deployable)
  └── develop (integration branch — all phases merge here first)
       ├── phase-1/foundation          ← Database, project scaffolds, environment
       ├── phase-2/core-pipeline       ← Bill ingestion → AI summary → storage
-      ├── phase-3/core-webapp-auth    ← Next.js frontend + Supabase Auth (phone OTP)
-      ├── phase-4/alerts-feedback     ← SMS alerts, auth-gated feedback, custom profiles, dashboard
+      ├── phase-3/core-webapp-auth    ← Next.js frontend + Supabase Auth (feedback OTP only)
+      ├── phase-4/alerts-feedback     ← SMS alerts, auth-gated feedback, example scenarios, dashboard
       ├── phase-5/scraper-automation  ← Automated scraping, Pub/Sub pipeline
       ├── phase-6/security-hardening  ← RLS, Vault encryption, CORS, audit logs
       ├── phase-7/rag-verification    ← pgvector embeddings, Verification Agent
@@ -54,8 +54,8 @@ main (protected — always deployable)
 ```
 Phase 1: Foundation                    ── Scaffolding, database, environment
 Phase 2: Core Pipeline                 ── Bill ingestion → AI agents → stored results (incl. LlamaParse)
-Phase 3: Core Web App + Auth           ── Next.js frontend + Supabase Auth (phone OTP)
-Phase 4: Alerts, Feedback & Dashboard  ── SMS alerts, auth-gated feedback, custom profiles, dashboard
+Phase 3: Core Web App + Feedback Auth  ── Next.js frontend + Supabase Auth (feedback OTP only)
+Phase 4: Alerts, Feedback & Dashboard  ── SMS alerts, auth-gated feedback, example scenarios, interactive calculator, dashboard
 ────────────────────────────────────────────────────────────────────────
    ▲ MILESTONE: Working Baseline (v0.2.0) — end-to-end system works
 ────────────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ Phase 8: Production Hardening         ── Circuit breakers, DLQ, monitoring, 
 
 ### Step 1.2 — Database Schema (Core Tables Only)
 
-Create only the tables needed for the baseline. The full ERD (Section 5 of architectural design) has 10 tables — implement these 7 now, defer `bill_chunks`, `llm_usage_log`, and `audit_log` to later phases:
+Create only the tables needed for the baseline. The full ERD (Section 5 of architectural design) has 10 tables — implement these 6 now, defer `user_profiles`, `bill_chunks`, `llm_usage_log`, and `audit_log` to later phases:
 
 | Table | Why Now |
 |---|---|
@@ -93,17 +93,19 @@ Create only the tables needed for the baseline. The full ERD (Section 5 of archi
 | `bill_tags` | Core — needed for subscriber matching and filtering |
 | `subscribers` | Core — needed for SMS alerts |
 | `feedback` | Core — needed for citizen feedback and dashboard. Includes `user_id` FK and `UNIQUE(bill_id, user_id)` constraint |
-| `user_profiles` | Core — needed for custom business profiles. Includes `user_id` FK (UNIQUE), `custom_metrics` JSONB, `consent_given_at` |
 | `notifications` | Core — needed for delivery tracking |
-| `tier_impact_cache` | Core — caches pre-computed predefined hustle tier impact results to bypass proxy timeouts |
+| `tier_impact_cache` | Core — caches pre-computed predefined hustle tier impact results to bypass proxy timeouts and stores pre-generated example scenarios |
+
+> [!NOTE]
+> `user_profiles` is deferred to post-buildathon. Custom business profiles are not needed for the buildathon — the Impact page uses AI-generated example scenarios with hypothetical personas (based on predefined hustle profiles) instead of personalized impact calculations.
 
 Write the SQL migration script. Include:
 - All columns as defined in the ERD.
 - Primary keys, foreign keys, unique constraints.
-- Core indexes (`idx_bills_url_hash`, `idx_bills_ai_status`, `idx_bill_tags_industry`, `idx_subscribers_phone_hash`, `idx_subscribers_industry`, `idx_feedback_bill_id`, `idx_feedback_user_bill`, `idx_user_profiles_user_id`, `idx_notifications_status`, `idx_tier_impact_lookup`).
-- The `updated_at` auto-update trigger on `bills`, `subscribers`, and `user_profiles`.
-- **Skip for now**: RLS policies (Phase 6), Vault encryption (Phase 6), `bill_chunks` table (Phase 7).
-- **Enable Supabase Auth** — needed from Phase 3 onward for feedback and profile features.
+- Core indexes (`idx_bills_url_hash`, `idx_bills_ai_status`, `idx_bill_tags_industry`, `idx_subscribers_phone_hash`, `idx_subscribers_industry`, `idx_feedback_bill_id`, `idx_feedback_user_bill`, `idx_notifications_status`, `idx_tier_impact_lookup`).
+- The `updated_at` auto-update trigger on `bills` and `subscribers`.
+- **Skip for now**: RLS policies (Phase 6), Vault encryption (Phase 6), `bill_chunks` table (Phase 7), `user_profiles` table (post-buildathon).
+- **Enable Supabase Auth** — needed from Phase 3 onward for feedback submission.
 
 ### Step 1.3 — FastAPI Backend Scaffold
 
@@ -119,10 +121,9 @@ backend/
 │   ├── api/
 │   │   ├── __init__.py
 │   │   ├── bills.py          # GET /api/bills, GET /api/bills/{id}
-│   │   ├── impact.py         # POST /api/impact
+│   │   ├── impact.py         # GET /api/impact/{bill_id} (example scenario + compliance)
 │   │   ├── feedback.py       # POST /api/feedback (auth required)
 │   │   ├── subscribe.py      # POST/DELETE /api/subscribe
-│   │   ├── profile.py        # POST/GET/DELETE /api/profile (auth required)
 │   │   ├── dashboard.py      # GET /api/dashboard/stats
 │   │   └── webhooks.py       # POST /api/webhooks/at-delivery
 │   ├── agents/
@@ -131,8 +132,8 @@ backend/
 │   │   ├── summarizer.py     # Summarization Agent
 │   │   ├── verifier.py       # Verification Agent
 │   │   ├── translator.py     # Translation Agent
-│   │   ├── impact_agent.py   # Financial Impact Agent
-│   │   └── calculator.py     # Deterministic calculator tool
+│   │   ├── impact_agent.py   # Financial Impact Agent (example scenario generation)
+│   │   └── calculator.py     # Deterministic calculator tool (used by agent + interactive frontend)
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── scraper.py        # Bill scraping (parliament.go.ke)
@@ -171,14 +172,16 @@ frontend/
 │   │   ├── bills/
 │   │   │   ├── page.js       # Bill list — browse & filter all analyzed bills
 │   │   │   └── [id]/
-│   │   │       ├── page.js   # Bill summary + feedback form
-│   │   │       └── impact/
-│   │   │           └── page.js  # Financial impact analysis + compliance checklist + feedback form
+│   │   │       └── page.js   # Bill summary + feedback form
+│   │   ├── impact/
+│   │   │   ├── page.js       # Impact bill list — browse bills with financial/regulatory filter
+│   │   │   └── [id]/
+│   │   │       └── page.js   # Impact detail — example scenario (financial) or compliance checklist (regulatory) + feedback form
 │   │   ├── dashboard/
 │   │   │   └── page.js       # Insights dashboard — aggregated feedback & sentiment
 │   │   └── subscribe/
 │   │       └── page.js       # Alert subscription — phone, industry, language
-│   ├── components/           # Reusable UI components (BillCard, SummaryView, ImpactCalculator, etc.)
+│   ├── components/           # Reusable UI components (BillCard, SummaryView, ExampleScenario, ComplianceChecklist, InteractiveCalculator, FeedbackForm, etc.)
 │   ├── lib/
 │   │   ├── api.js            # FastAPI client wrapper
 │   │   └── supabase.js       # Supabase browser client
@@ -189,11 +192,11 @@ frontend/
 └── next.config.js
 ```
 
-> **Page purpose clarity**: The `/bills` page is where citizens **browse and read** bill summaries — it's the core content page. The `/bills/[id]` page shows the full AI-generated summary with a feedback form at the bottom; if the bill has financial implications, a prominent link directs users to the impact page. The `/bills/[id]/impact` page provides a detailed personalized financial impact analysis, a regulatory compliance checklist, and its own feedback form; it links back to the bill summary for full context. The `/dashboard` page shows aggregated citizen sentiment. The `/subscribe` page handles SMS alert opt-in. **Note**: Only two bills are seeded initially (Finance Bill 2024 and Boda Boda Permit Regulations 2025) to demonstrate functionality; the corpus will be expanded as the system scales.
+> **Page purpose clarity**: The `/bills` page is where citizens **browse and read** bill summaries — it's the core content page. The `/bills/[id]` page shows the full AI-generated summary with a feedback form at the bottom. The `/impact` page is a **separate top-level section** where citizens explore the practical impact of bills — it displays a bill list (identical to `/bills`) with a dropdown filter for "Financial" vs "Regulatory" bills. The `/impact/[id]` page shows a concise bill summary and, depending on bill type: an AI-generated **example scenario** with a hypothetical person (financial bills) or a **compliance checklist** (regulatory bills), plus a feedback form. The `/dashboard` page shows aggregated citizen sentiment. The `/subscribe` page handles SMS alert opt-in. **Note**: Only two bills are seeded initially (Finance Bill 2024 and Boda Boda Permit Regulations 2025) to demonstrate functionality; the corpus will be expanded as the system scales.
 
 - Initialize Next.js (App Router).
 - Set up the design system in `globals.css` — color palette, typography (Google Fonts), spacing scale, dark mode variables.
-- Create the shell layout with navigation (Bills, Dashboard, Subscribe).
+- Create the shell layout with navigation (Bills, Impact, Dashboard, Subscribe).
 - All pages render placeholder content. Actual UI is built in Phase 3.
 - Set up the API client wrapper (`lib/api.js`) that points to the FastAPI backend.
 
@@ -316,14 +319,23 @@ Rather than building the full scraper automation first, simulate bill ingestion:
   - Exposed as a Gemini function calling definition.
 - Write tests. This is deterministic code — 100% test coverage is expected.
 
-### Step 2.8 — Financial Impact Agent
+### Step 2.8 — Financial Impact Agent (Example Scenario Generation)
 
 - Implement `agents/impact_agent.py`:
-  - Input: Bill summary, regex extractions, hustle profile metrics.
+  - Input: Bill summary, regex extractions, bill type (`financial` or `regulatory`), representative hustle profile metrics (from predefined profiles).
   - LLM: Gemini 3.5 Flash with the calculator tool available via function calling.
-  - Prompt: Reason about the financial formula, call the calculator for all arithmetic, produce structured impact result.
-  - Output: `ImpactAnalysis` with `impact_table`, `net_monthly_impact`, `compliance_checklist`, `risk_level`.
-- Run for one tier (e.g., BodaBoda Rider) against the seeded bill. Verify the calculator tool is being called (not LLM math).
+  - **For financial bills**: Prompt the agent to generate an **Example Scenario** — a worked financial impact breakdown for a **hypothetical person** (e.g., "Mama Njeri, a matatu operator with a vehicle worth KES 800,000"). The scenario must include:
+    - Key numbers and percentages from the bill
+    - Who is affected
+    - Where values were sourced (sections, clauses — best effort; full accuracy depends on RAG in Phase 7)
+    - Step-by-step math breakdown using the calculator tool (not LLM math)
+    - A `calculator_formula` — the deterministic formula that the interactive calculator (Phase 4) will use to let users compute their own values
+  - **For regulatory bills**: Prompt the agent to generate a **Compliance Checklist** — an actionable guide for what the user needs to do to comply. Each item includes: action required, deadline (if applicable), relevant bill section reference.
+  - Output (financial): `ExampleScenario` with `scenario_persona`, `concise_summary`, `key_figures`, `math_breakdown`, `sources`, `calculator_formula`, `risk_level`.
+  - Output (regulatory): `ComplianceGuide` with `concise_summary`, `compliance_checklist[]`, `sources`, `regulatory_changes`.
+  - The predefined hustle profiles (e.g., BodaBoda Rider with vehicle_value: 150,000 KES) are used as the basis for the hypothetical persona. The AI picks the most representative profile for each bill.
+- Run for one bill (e.g., Finance Bill 2024 with BodaBoda Rider profile) against the seeded bill. Verify the calculator tool is being called (not LLM math).
+- Run for the regulatory bill (Boda Boda Permit Regulations 2025). Verify compliance checklist is generated.
 
 ### Step 2.9 — DAG Orchestrator
 
@@ -339,14 +351,14 @@ Rather than building the full scraper automation first, simulate bill ingestion:
 ### Step 2.10 — Impact API Endpoint
 
 - Implement `api/impact.py`:
-  - `POST /api/impact` with body `{bill_id, industry, tier, use_custom_profile?}`.
-  - Loads the bill summary from Supabase.
-  - If `use_custom_profile=true` and a valid JWT is present, loads the user's custom profile from `user_profiles`.
-  - Otherwise, loads the hustle profile from the in-memory `HUSTLE_PROFILES` dict.
-  - Invokes the Financial Impact Agent synchronously.
-  - Returns the impact analysis JSON.
-  - **Does NOT persist the impact result** (privacy-by-design). Custom profiles are persisted separately.
-- Test: Call the endpoint with the seeded bill + BodaBoda Rider tier. Verify JSON response.
+  - `GET /api/impact/{bill_id}` — returns the pre-generated example scenario (financial bills) or compliance guide (regulatory bills).
+  - Loads the bill metadata and type from Supabase.
+  - For financial bills: invokes the Financial Impact Agent to generate the example scenario. The agent uses predefined hustle profile metrics to construct the hypothetical persona.
+  - For regulatory bills: invokes the Financial Impact Agent to generate the compliance guide.
+  - Returns the structured JSON response including `concise_summary`, `example_scenario` or `compliance_checklist`, `pdf_url`, and `sources`.
+  - **No user data is needed** — the example scenario uses a hypothetical persona, not the user's personal information.
+- Test: Call the endpoint with the seeded financial bill. Verify example scenario JSON response with math breakdown.
+- Test: Call the endpoint with the seeded regulatory bill. Verify compliance checklist JSON response.
 
 ### Step 2.11 — Bills API Endpoints
 
@@ -363,16 +375,17 @@ Rather than building the full scraper automation first, simulate bill ingestion:
 - [x] Translation Agent produces a Swahili translation.
 - [x] Verification Agent performs basic numeric claim checking (without RAG).
 - [x] Calculator tool is deterministic and tested.
-- [x] Financial Impact Agent produces KES-denominated analysis using the calculator.
+- [x] Financial Impact Agent produces example scenario with KES-denominated math breakdown using the calculator.
+- [x] Financial Impact Agent produces compliance checklist for regulatory bills.
 - [x] DAG orchestrator runs the full pipeline end-to-end.
-- [x] `GET /api/bills`, `GET /api/bills/{id}`, and `POST /api/impact` return correct data.
+- [x] `GET /api/bills`, `GET /api/bills/{id}`, and `GET /api/impact/{bill_id}` return correct data.
 - [ ] Merge `phase-2/core-pipeline` → `develop`. (need to fix gemini api client first, currently using deepseek fallback)
 
 ---
 
-## Phase 3: Core Web App + Auth
+## Phase 3: Core Web App + Feedback Auth
 
-**Goal**: A citizen can open the web app, see a list of analyzed bills, read a bill summary (in English or Swahili) with a feedback form, navigate to a separate impact page for detailed financial analysis and compliance guidance, and log in via phone OTP. Auth is needed from this phase onward because feedback and custom profiles (Phase 4) require it. Only two demo bills are seeded initially to demonstrate end-to-end functionality.
+**Goal**: A citizen can open the web app, see a list of analyzed bills, read a bill summary (in English or Swahili) with a feedback form, and explore the practical impact of bills on a separate top-level Impact page — viewing example scenarios (financial) or compliance checklists (regulatory). Phone OTP login is available for feedback submission (one-person-one-vote integrity). Only two demo bills are seeded initially to demonstrate end-to-end functionality.
 
 **Branch**: `phase-3/core-webapp-auth`
 
@@ -403,15 +416,15 @@ Rather than building the full scraper automation first, simulate bill ingestion:
   - Verify Supabase JWTs using the Supabase public key.
   - Support **optional auth** (public endpoints work without JWT; authenticated endpoints return richer data or enable gated features).
   - Extract `user_id` from JWT for authenticated requests.
-  - Apply auth to: `POST /api/feedback`, `POST /api/subscribe`, `DELETE /api/subscribe`, `POST/GET/DELETE /api/profile`.
-  - Keep public: `GET /api/bills`, `GET /api/bills/{id}`, `POST /api/impact` (without custom profile), `GET /api/dashboard/stats`.
+  - Apply auth to: `POST /api/feedback`, `POST /api/subscribe`, `DELETE /api/subscribe`.
+  - Keep public: `GET /api/bills`, `GET /api/bills/{id}`, `GET /api/impact/{bill_id}`, `GET /api/dashboard/stats`.
 
 ### Step 3.3 — Landing Page
 
 - Build the `/` landing page:
   - Hero section explaining what KeLegislate does.
   - Call-to-action: "Browse Bills" → navigates to `/bills`.
-  - Quick stats (total bills analyzed, total feedback submitted — fetched from `/api/dashboard/stats`).
+  - "See Impact" → navigates to `/impact`.
   - "Get Alerts" → navigates to `/subscribe`.
 - Mobile-optimized layout.
 
@@ -422,13 +435,12 @@ This is the **primary entry point** for most citizens. Users come here to browse
 - Build `/bills`:
   - Fetches `GET /api/bills` on load.
   - Renders bill cards: title, short summary excerpt (first 150 chars of `ai_summary_en`), industry tag badges, date, status indicator.
-  - Industry filter dropdown (filters client-side or via query param).
   - Pagination (or infinite scroll).
   - Click on a card → navigates to `/bills/{id}`.
 
 ### Step 3.5 — Bill Summary Page
 
-This page is dedicated to **reading and understanding** the bill. The user reads the full AI-generated summary with key implications, industry tags, and source citations. A feedback form at the bottom allows authenticated users to submit their stance. If the bill has financial implications for the user's industry, a prominent call-to-action links to the separate impact page.
+This page is dedicated to **reading and understanding** the bill. The user reads the full AI-generated summary with key implications, industry tags, and source citations. A feedback form at the bottom allows authenticated users to submit their stance.
 
 - Build `/bills/[id]`:
   - Fetches `GET /api/bills/{id}` on load.
@@ -439,64 +451,87 @@ This page is dedicated to **reading and understanding** the bill. The user reads
     - Key implications for businesses/government (bulleted list).
     - Industry tag badges.
     - Source citations (linked to bill sections if available).
-    - Regex-extracted values displayed in a highlighted callout (key financial figures from the bill).
     - Link to the original bill PDF.
-  - **Financial impact call-to-action (if bill has financial implications)**:
-    - A highlighted banner/button: "See How This Bill Affects Your Hustle →" linking to `/bills/[id]/impact`.
-    - Displayed prominently below the summary for bills tagged with relevant financial industries.
   - **Feedback form (bottom of page)**:
     - Support stance radio (Support/Oppose/Neutral).
-    - Star rating (1-5).
+    - Star rating (1-10).
     - Concerns text area.
-    - **If user is not logged in**: show a prompt — "Please verify your phone number to submit feedback. This ensures one-person-one-vote integrity." with a "Sign In" button that triggers the OTP flow.
-    - **If user is logged in**: show the feedback form. Submit button → calls `POST /api/feedback`.
+    - Show a prompt — "Please verify your phone number to submit feedback. This ensures one-person-one-vote integrity." with a "Sign In" button that triggers the OTP flow.
     - On HTTP 409 (duplicate): show "You've already submitted feedback for this bill."
     - Success toast.
 
-### Step 3.6 — Impact Analysis Page
+### Step 3.6 — Impact Bill List Page
 
-This is a **separate, dedicated page** where users see a detailed personalized financial impact analysis of the bill. It includes the impact calculator, a regulatory compliance checklist, and its own feedback form. A link back to the bill summary page provides full context.
+The **Impact section** is a top-level area where citizens explore the practical effects of bills. It presents the same bills as `/bills`, but with a filter dropdown to focus on financial or regulatory bills and links to dedicated impact detail pages.
 
-- Build `/bills/[id]/impact`:
-  - Fetches `GET /api/bills/{id}` on load (for bill metadata and title context).
-  - **Back-link to bill summary**: "← Read Full Bill Summary" linking to `/bills/[id]`.
-  - **Impact calculator section**:
-    - Industry selector dropdown (8 options from `INDUSTRIES`).
-    - Tier selector dropdown (dynamically loads tiers for selected industry from a client-side copy of `HUSTLE_PROFILES`).
-    - Profile preview (shows the selected tier's metrics — vehicle value, revenue, overhead, etc.).
-    - If user is logged in and has a custom profile: show a "Use My Profile" toggle that switches to their custom metrics.
-    - "Calculate Impact" button → calls `POST /api/impact`.
-    - Loading state with animated spinner ("Analyzing impact on your hustle...").
-    - Results display: KES impact table, net monthly impact, risk level badge (LOW/MEDIUM/HIGH).
-    - Handles timeout gracefully (shows "Try again" with retry button after 30s).
-  - **Regulatory compliance checklist (below impact results)**:
-    - A clear, actionable list detailing what the business owner / boda boda rider needs to do to be compliant with the bill's provisions.
-    - Items sourced from the impact agent's `compliance_checklist` output.
-    - Each item shows: action required, deadline (if applicable), and relevant bill section reference.
+- Build `/impact`:
+  - Fetches `GET /api/bills` on load (same endpoint as `/bills`).
+  - Renders bill cards identical to `/bills` page: title, short summary excerpt, tag badges (with `financial` and `regulatory` badge styling), date, status indicator.
+  - **Dropdown filter** at top: "All Bills" / "Financial Bills" / "Regulatory Bills" — filters by `bill_type` field.
+  - Click on a card → navigates to `/impact/{id}`.
+
+### Step 3.7 — Impact Detail Page (Financial Bills)
+
+When a user clicks on a **financial bill** in the Impact section, they see a concise summary of the bill's financial implications and a worked **Example Scenario** showing the math through a hypothetical person.
+
+- Build `/impact/[id]` (financial bill variant):
+  - Fetches `GET /api/impact/{bill_id}` on load.
+  - **Concise bill summary (top section)**:
+    - More concise than the `/bills/[id]` summary — focused on the major numbers, percentages, who's affected.
+    - Where values were sourced (sections, clauses — best effort for now; full accuracy depends on RAG in Phase 7).
+  - **Example Scenario section**:
+    - Heading: "How this bill could affect a typical [persona name]" (e.g., "How this bill could affect Mama Njeri, a matatu operator").
+    - Shows the hypothetical person's profile (e.g., "Vehicle value: KES 800,000, Monthly revenue: KES 60,000").
+    - Step-by-step math breakdown: "Under this bill, her annual vehicle circulation tax would be: KES 800,000 × 2.5% = KES 20,000".
+    - Sources cited (bill sections, clauses).
+    - Risk level badge (LOW/MEDIUM/HIGH).
+  - **Interactive Calculator placeholder**:
+    - Show text: "Interactive calculator coming soon — input your own values to see your personal impact."
+    - Actual calculator implementation is in Step 4.5A (Phase 4, nice-to-have).
+  - **Link to original bill PDF**.
   - **Feedback form (bottom of page)**:
-    - Same feedback form component as the bill summary page (Support/Oppose/Neutral, star rating, concerns).
+    - Same `FeedbackForm` component as the bill summary page (Support/Oppose/Neutral, star rating, concerns).
     - Auth-gated identically — login prompt if not authenticated, form if authenticated.
     - Shares the same `POST /api/feedback` endpoint and `UNIQUE(bill_id, user_id)` deduplication.
 
-### Step 3.7 — Navigation & Responsive Layout
+### Step 3.8 — Impact Detail Page (Regulatory Bills)
+
+When a user clicks on a **regulatory bill** in the Impact section, they see a concise summary of the regulatory changes and a **Compliance Checklist** as a guide for what the user ought to do.
+
+- Build `/impact/[id]` (regulatory bill variant — same route, different content based on `bill_type`):
+  - Fetches `GET /api/impact/{bill_id}` on load.
+  - **Concise bill summary (top section)**:
+    - Focused on the major regulatory changes.
+    - Where changes were sourced (sections, clauses — best effort for now).
+  - **Compliance Checklist section**:
+    - A clear, actionable guide detailing what the user needs to do to avoid repercussions.
+    - Each item shows: action required, deadline (if applicable), and relevant bill section reference.
+    - Styled as an informational checklist (not interactive checkboxes — purely guidance).
+  - **Link to original bill PDF**.
+  - **Feedback form (bottom of page)**:
+    - Same `FeedbackForm` component, auth-gated identically.
+    - Shares the same `POST /api/feedback` endpoint and `UNIQUE(bill_id, user_id)` deduplication.
+
+### Step 3.9 — Navigation & Responsive Layout
 
 - Build the app shell:
-  - Mobile bottom navigation bar (Bills, Dashboard, Impact,Subscribe).
-  - Desktop side navigation.
-  - Auth state indicator ("Sign In" / user phone number display).
+  - Mobile and desktop top navigation bar.
+  - Navigation items: **Bills**, **Impact**, **Dashboard**, **Subscribe**.
+  - Auth state indicator ("Sign In" / user phone number display) — only triggers login when user attempts to submit feedback.
   - Responsive breakpoints working correctly.
   - Page transitions (subtle fade or slide).
 
 ### Phase 3 Exit Criteria
 
-- [ ] Phone OTP login works end-to-end (frontend → Supabase Auth → JWT).
-- [ ] Auth middleware validates tokens on protected endpoints.
-- [ ] Landing page renders with hero, stats, and CTAs.
+- [ ] Phone OTP login works end-to-end (frontend → Supabase Auth → JWT) — triggered from feedback form.
+- [ ] Auth middleware validates tokens on protected endpoints (`POST /api/feedback`, subscription endpoints).
+- [ ] Landing page renders with hero, stats, and CTAs (Bills, Impact, Alerts).
 - [ ] Bill list page fetches and displays two demo bills from the API with tag filtering.
 - [ ] Bill summary page (`/bills/[id]`) shows English/Swahili summary with language toggle and feedback form.
-- [ ] Bill summary page links to the impact page for bills with financial implications.
-- [ ] Impact page (`/bills/[id]/impact`) calls the API, shows loading state, renders impact results and compliance checklist, and includes a feedback form.
-- [ ] Impact page links back to the bill summary page.
+- [ ] Impact bill list page (`/impact`) shows bills with financial/regulatory filter dropdown.
+- [ ] Impact detail page (`/impact/[id]`) shows example scenario for financial bills with math breakdown.
+- [ ] Impact detail page (`/impact/[id]`) shows compliance checklist for regulatory bills.
+- [ ] Both impact detail pages include PDF link and auth-gated feedback form.
 - [ ] Responsive layout works on mobile (375px) and desktop (1024px).
 - [ ] Merge `phase-3/core-webapp-auth` → `develop`.
 
@@ -504,7 +539,7 @@ This is a **separate, dedicated page** where users see a detailed personalized f
 
 ## Phase 4: Alerts, Feedback & Dashboard
 
-**Goal**: Complete the civic engagement loop. Citizens can subscribe to SMS alerts, submit feedback on bills, and view aggregated insights. After this phase, the **working baseline** is complete.
+**Goal**: Complete the civic engagement loop. Citizens can subscribe to SMS alerts, submit feedback on bills, and view aggregated insights. The interactive calculator is added to financial impact pages as a nice-to-have. After this phase, the **working baseline** is complete.
 
 **Branch**: `phase-4/alerts-feedback`
 
@@ -563,31 +598,27 @@ This is a **separate, dedicated page** where users see a detailed personalized f
 
 ### Step 4.6 — Feedback UI (Auth-Gated)
 
-The feedback form component was already built in Phase 3 (Steps 3.5 and 3.6) and is present on both the bill summary page (`/bills/[id]`) and the impact page (`/bills/[id]/impact`). This step focuses on **polishing and hardening** the feedback experience:
+The feedback form component was already built in Phase 3 (Steps 3.5, 3.7, and 3.8) and is present on the bill summary page (`/bills/[id]`) and both impact detail pages (`/impact/[id]`). This step focuses on **polishing and hardening** the feedback experience:
 
-- Ensure the shared `FeedbackForm` component works identically on both pages.
+- Ensure the shared `FeedbackForm` component works identically on all pages (bill summary, financial impact, regulatory impact).
 - Verify auth-gating behavior: login prompt when unauthenticated, form when authenticated.
-- Verify `UNIQUE(bill_id, user_id)` constraint: submitting from either page counts as the same feedback (no double-voting by submitting on both pages).
+- Verify `UNIQUE(bill_id, user_id)` constraint: submitting from any page counts as the same feedback (no double-voting by submitting on multiple pages).
 - On HTTP 409 (duplicate): show "You've already submitted feedback for this bill" on whichever page the user is on.
 - Success toast animation and state reset after submission.
 
-### Step 4.7 — Custom User Profile API
+### Step 4.7 — Interactive Calculator (Nice-to-Have)
 
-- Implement `api/profile.py`:
-  - `POST /api/profile`: Accepts `{industry, tier_label?, custom_metrics}`. Requires auth. Creates or updates (upsert) the user's business profile in `user_profiles`. Stores `consent_given_at` on first creation. Encrypts `custom_metrics` at application level before writing to Supabase.
-  - `GET /api/profile`: Returns the user's profile (decrypted). Requires auth.
-  - `DELETE /api/profile`: Permanently deletes the profile. Requires auth.
-  - All endpoints enforce RLS-like checks via `user_id` from JWT.
+After reading the example scenario on the financial impact detail page, users may want to compute their own numbers. The interactive calculator provides this without requiring any user data to be stored or sent to a server.
 
-### Step 4.8 — Custom Profile UI
-
-- Add an account/profile page (`/account` or `/profile`):
-  - Shows current auth status.
-  - Profile form: industry selector, tier label (optional), custom business metrics fields (vehicle value, monthly revenue range, employee count, monthly expenses).
-  - Consent dialog: "Your business data will be stored encrypted and used only for personalized impact calculations. You can delete it at any time."
-  - Save button → calls `POST /api/profile`.
-  - Delete button → calls `DELETE /api/profile` with confirmation dialog.
-- Update the impact calculator (Step 3.6) to show a "Use My Profile" toggle if the user is logged in and has a custom profile.
+- Build the `InteractiveCalculator` component for `/impact/[id]` (financial bills only):
+  - Appears **below the example scenario section**, replacing the placeholder text.
+  - Uses the `calculator_formula` field from the API response (pre-loaded by the Financial Impact Agent).
+  - **Input fields** are dynamically generated from the formula's variables (e.g., "Enter your vehicle value", "Enter your monthly revenue").
+  - **Deterministic calculation** — pure client-side JavaScript math, no AI calls, no network requests.
+  - **Session-based** — no values are stored in any database, cookie, or local storage. Values exist only in component state and are lost on page refresh.
+  - Results shown inline below the calculator: "Based on your values, your estimated annual cost would be: KES X".
+  - Clear labeling: "This is an estimate based on the bill's provisions. Consult a professional for specific advice."
+- This step is **nice-to-have** — if time is tight, the placeholder text from Phase 3 remains.
 
 ### Step 4.9 — Dashboard API
 
@@ -605,20 +636,20 @@ The feedback form component was already built in Phase 3 (Steps 3.5 and 3.6) and
   - Common concerns list (top extracted keywords/phrases).
   - AI-generated insights button (calls Gemini to analyze aggregated feedback — same as prototype's `generate_insights`).
 
-### Step 4.11 — End-to-End Smoke Test
+### Step 4.10 — End-to-End Smoke Test
 
 This is the critical validation. Walk through the entire flow:
 
-1. **Seed a bill** (or use the one from Phase 2).
+1. **Seed a bill** (or use the ones from Phase 2).
 2. **Run the pipeline** via `POST /api/admin/run-pipeline/{bill_id}`.
 3. **View the bill summary page** (`/bills/[id]`) — verify summary, language toggle, and feedback form render correctly.
-4. **Navigate to the impact page** via the "See How This Bill Affects Your Hustle" link — verify it loads `/bills/[id]/impact`.
-5. **Navigate back** to the bill summary via the "← Read Full Bill Summary" link — verify round-trip navigation.
-6. **Log in** via phone OTP.
-7. **Create a custom profile** with business metrics.
-8. **Calculate impact** on the impact page using the custom profile — verify different results from predefined tier and compliance checklist renders.
-9. **Subscribe** the logged-in phone number to alerts.
-10. **Trigger alerts** via `POST /api/admin/send-alerts/{bill_id}` — verify SMS is received on the test phone.
+4. **Browse the Impact page** (`/impact`) — verify bill list with financial/regulatory filter dropdown.
+5. **View a financial bill impact** (`/impact/[id]`) — verify concise summary and example scenario with math breakdown render.
+6. **View a regulatory bill impact** (`/impact/[id]`) — verify concise summary and compliance checklist render.
+7. **Test the interactive calculator** (if implemented) — enter values, verify deterministic calculation.
+8. **Subscribe** a phone number to alerts.
+9. **Trigger alerts** via `POST /api/admin/send-alerts/{bill_id}` — verify SMS is received on the test phone.
+10. **Log in** via phone OTP (triggered from feedback form).
 11. **Submit feedback** on the bill summary page (auth-gated).
 12. **Attempt duplicate feedback** on the impact page — verify HTTP 409 (same `bill_id + user_id` constraint).
 13. **View the dashboard** — verify the feedback appears in charts and metrics.
@@ -632,12 +663,11 @@ If all 13 steps work, the baseline is complete.
 - [ ] Notification service matches subscribers to bills by industry, computes tier-level impacts, and sends SMS.
 - [ ] Delivery receipt webhook updates notification status.
 - [ ] Feedback API requires auth; `UNIQUE(bill_id, user_id)` enforced at database level.
-- [ ] Feedback form on both bill summary page and impact page gates submission behind login.
-- [ ] Feedback deduplication works across both pages (same `bill_id + user_id` constraint).
-- [ ] Custom profile API supports CRUD with encrypted storage.
-- [ ] Custom profile UI allows users to create, view, and delete their business profiles.
-- [ ] Impact page supports both predefined tiers and custom profiles.
-- [ ] Cross-navigation between bill summary and impact pages works in both directions.
+- [ ] Feedback form on bill summary page, financial impact page, and regulatory impact page gates submission behind login.
+- [ ] Feedback deduplication works across all pages (same `bill_id + user_id` constraint).
+- [ ] Example scenario renders correctly for financial bills on `/impact/[id]`.
+- [ ] Compliance checklist renders correctly for regulatory bills on `/impact/[id]`.
+- [ ] Interactive calculator works on financial impact pages (if implemented as nice-to-have).
 - [ ] Dashboard API returns aggregated feedback stats.
 - [ ] Insights dashboard renders charts and metrics.
 - [ ] End-to-end smoke test passes (all 13 steps).
@@ -679,7 +709,10 @@ If all 13 steps work, the baseline is complete.
     1. Text extraction (pdfplumber/OCR with LlamaParse fallback).
     2. Structural regex splitting (PART, Section, Schedule) + vector embedding generation.
     3. AI Pipeline DAG (Summarize → Verify with checklist → Translate).
-    4. Pre-compute and cache financial impact for all 3 predefined hustle tiers across 8 industries, and save them in the `tier_impact_cache` table.
+    4. Generate and cache impact content:
+       - For **financial bills**: Generate the Example Scenario (hypothetical persona + math breakdown + calculator formula) using the most representative predefined hustle profile. Cache in the `tier_impact_cache` table.
+       - For **regulatory bills**: Generate the Compliance Guide (regulatory changes + compliance checklist). Cache in the `tier_impact_cache` table.
+       - For **SMS alerts**: Pre-compute tier-level financial impact summaries for all matched predefined hustle tiers. Cache for notification formatting.
     5. Subscriber matching & alert fan-out (reads cached tier impacts, formats and dispatches SMS/WhatsApp alerts via Africa's Talking with a KDPA unsubscribe disclaimer).
 - Catch all tracebacks, log them to the database, and set the bill's `ai_status` to `'failed'` with error details persisted in `ai_error` if any stage fails.
 
@@ -954,10 +987,10 @@ Phase 1 (Foundation)
 Phase 2 (Core Pipeline + LlamaParse)
     │
     ▼
-Phase 3 (Core Web App + Auth)  ← Auth moved here (using Africa's Talking OTP Webhook & local bypass)
+Phase 3 (Core Web App + Feedback Auth)  ← OTP auth for feedback only (using Africa's Talking OTP Webhook & local bypass)
     │
     ▼
-Phase 4 (Alerts, Auth-Gated Feedback, Custom Profiles, Dashboard) ─► v0.2.0 Working Baseline
+Phase 4 (Alerts, Auth-Gated Feedback, Example Scenarios, Interactive Calculator, Dashboard) ─► v0.2.0 Working Baseline
     │
     ▼
 Phase 5 (Scraper Automation & Monolith Background Task Pipeline)
@@ -974,7 +1007,7 @@ Phase 8 (Production Hardening: Circuit Breaker, PWA, Realtime) ─► v1.0.0 Pro
 
 Each phase depends strictly on the previous one. No phase can be started until its predecessor is merged to `develop`. This ensures a stable, incremental build where every merge leaves the system in a working state.
 
-**Key structural change from v1.1**: Auth (Supabase phone OTP) was previously in Phase 6. It has been moved to Phase 3 because feedback integrity (anti-astroturfing) and custom user profiles both require authentication to be available earlier in the build.
+**Key structural changes from v1.2**: (1) Auth scope reduced — phone OTP login is now only for feedback submission gating, not for custom profiles. (2) Impact page redesigned — instead of personalized financial impact calculations, the system generates generic "Example Scenarios" using hypothetical personas (based on predefined hustle profiles) with step-by-step math breakdowns. An interactive deterministic calculator lets users compute their own values client-side. (3) Custom user business profiles and the `/account` page are deferred to post-buildathon. (4) The Impact page is now a top-level route (`/impact`) with its own bill list and financial/regulatory filter, not a sub-page of `/bills/[id]`.
 
 ---
 
@@ -990,16 +1023,21 @@ Each phase depends strictly on the previous one. No phase can be started until i
 | AI translation (Swahili) | ✅ (DeepSeek, bundled) | ✅ (Gemini 2.5 Flash, separate agent) | ✅ |
 | Verification Agent | ❌ | ✅ (basic, regex only) | ✅ (RAG-grounded + Boundary Checklist, Phase 7) |
 | Calculator tool | ❌ | ✅ (Phase 2) | ✅ |
-| Financial Impact Agent | ✅ (DeepSeek, no calculator) | ✅ (Gemini 3.5 Flash + calculator) | ✅ (Step-by-step Math Breakdown XAI) |
+| Financial Impact Agent | ✅ (DeepSeek, no calculator) | ✅ (Gemini 3.5 Flash + calculator, example scenarios) | ✅ (Step-by-step Math Breakdown XAI) |
+| **Example Scenarios (hypothetical personas)** | ❌ | **✅ (Phase 3-4)** | ✅ |
+| **Compliance Checklists (regulatory bills)** | ❌ | **✅ (Phase 3-4)** | ✅ |
+| **Interactive Calculator (client-side)** | ❌ | **✅ (Phase 4, nice-to-have)** | ✅ |
+| **Impact page (top-level, financial/regulatory filter)** | ❌ | **✅ (Phase 3)** | ✅ |
 | DAG orchestrator | ❌ | ✅ (Phase 2) | ✅ |
 | Vector embeddings (pgvector) | ❌ | ❌ | ✅ (Phase 7) |
 | RAG retrieval | ❌ | ❌ | ✅ (Phase 7) |
 | SMS alerts | ✅ (single send) | ✅ (tier-level, manual trigger) | ✅ (automated, batch via Africa's Talking) |
 | WhatsApp alerts | ❌ | ❌ | ✅ (Phase 8) |
 | Subscriber management | ✅ (Firestore) | ✅ (Supabase) | ✅ |
-| **Phone OTP auth** | ❌ | **✅ (Phase 3, AT Webhook & Local Bypass)** | ✅ |
+| **Phone OTP auth (feedback only)** | ❌ | **✅ (Phase 3, AT Webhook & Local Bypass)** | ✅ |
 | **Feedback submission (auth-gated)** | ✅ (Firestore, no dedup) | **✅ (Supabase, auth + UNIQUE constraint)** | ✅ |
-| **Custom user business profiles** | ❌ | **✅ (Phase 4, encrypted)** | ✅ |
+| **Custom user business profiles** | ❌ | **❌ (Deferred to Post-Buildathon)** | ✅ (Post-Buildathon) |
+| **Login/account page** | ❌ | **❌ (Deferred to Post-Buildathon)** | ✅ (Post-Buildathon) |
 | Insights dashboard | ✅ (Streamlit + Plotly) | ✅ (Next.js + charts) | ✅ (real-time) |
 | Phone encryption (Vault) | ❌ | ❌ | ✅ (Phase 6) |
 | RLS policies | ❌ | ❌ | ✅ (Phase 6) |

@@ -1,85 +1,134 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { api } from '../../lib/api';
+
+const DEFAULT_DEMO_BILLS = [
+  {
+    id: "finance-bill-2024",
+    title: "The Finance Bill, 2024",
+    bill_type: "financial",
+    created_at: "2026-08-01T00:00:00Z",
+    excerpt: "Introduces motor vehicle circulation taxes, fuel levies, and withholding tax adjustments impacting transport operators and micro-enterprises."
+  },
+  {
+    id: "nairobi-bodaboda-regulations-2025",
+    title: "Nairobi Motorcycle Taxi (Boda Boda) Permit Regulations 2025",
+    bill_type: "regulatory",
+    created_at: "2026-08-05T00:00:00Z",
+    excerpt: "Establishes mandatory annual county operating permits, designated SACCO registration requirements, helmet safety standards, and enforcement penalties."
+  }
+];
+
 export default function BillsPage() {
-  const placeholderBills = [
-    {
-      id: "1",
-      title: "The Motor Vehicle Circulation Tax Bill, 2026",
-      date: "July 24, 2026",
-      tags: ["Transport & Logistics", "Finance & Mobile Money"],
-      excerpt: "Imposes a circulation tax on all motor vehicles in Kenya, setting rates based on engine capacity and vehicle value.",
-      status: "translated"
-    },
-    {
-      id: "2",
-      title: "The Digital Marketplace Regulation Bill, 2026",
-      date: "July 18, 2026",
-      tags: ["Digital & Content Creation", "Retail & Market Trading"],
-      excerpt: "Establishes registration guidelines and updates withholding tax schedules for digital sales and content platform activities.",
-      status: "translated"
-    },
-    {
-      id: "3",
-      title: "The Eco-Levy and Plastic Regulations Act, 2026",
-      date: "July 12, 2026",
-      tags: ["Manufacturing & Artisan", "Hospitality & Food Service"],
-      excerpt: "Introduces standard levies on single-use plastics and sets compliance checklists for small-scale manufacturers.",
-      status: "translated"
+  const [bills, setBills] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadBills() {
+      setLoading(true);
+      try {
+        const response = await api.getBills(1, 20);
+        if (response && response.bills && response.bills.length > 0) {
+          const formattedBills = response.bills.map((b) => ({
+            id: b.id,
+            title: b.title,
+            bill_type: b.bill_type || 'financial',
+            created_at: b.created_at,
+            excerpt: b.ai_summary_en
+              ? (b.ai_summary_en.length > 160 ? b.ai_summary_en.substring(0, 160) + '...' : b.ai_summary_en)
+              : (b.title.includes('Finance')
+                ? "Introduces motor vehicle circulation taxes, fuel levies, and withholding tax adjustments impacting transport operators."
+                : "Establishes mandatory annual county operating permits, SACCO registration, and helmet safety standards.")
+          }));
+          setBills(formattedBills);
+        } else {
+          setBills(DEFAULT_DEMO_BILLS);
+        }
+      } catch (err) {
+        console.warn('API fetch error, using demo bills fallback:', err);
+        setBills(DEFAULT_DEMO_BILLS);
+      } finally {
+        setLoading(false);
+      }
     }
-  ];
+
+    loadBills();
+  }, []);
+
+  const getBillTypeTag = (type) => {
+    switch (type) {
+      case 'regulatory':
+        return <span className="badge-neutral">Regulatory</span>;
+      case 'financial':
+      default:
+        return <span className="badge-neutral">Financial</span>;
+    }
+  };
 
   return (
     <div className="container animate-fade-in">
-      <div style={{ marginBottom: '3rem' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>Browse Legislative Bills</h1>
-        <p style={{ color: '#cbd5e1' }}>Select an active draft bill to read its plain-text summary and calculate its financial impact.</p>
+      {/* Page Header */}
+      <div className="page-header" style={{ marginBottom: '2rem' }}>
+        <h1 className="page-title">Browse Legislative Bills</h1>
+        <p className="page-subtitle">
+          Active transport sector bills and regulations currently moving through Parliament and Nairobi County Assembly.
+        </p>
       </div>
 
-      {/* Filter and search bar */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '1rem', 
-        marginBottom: '2rem',
-        flexWrap: 'wrap'
-      }}>
-        <input 
-          className="form-input" 
-          placeholder="Search bills..." 
-          style={{ flex: '1 1 300px', maxWidth: '400px' }}
-        />
-        <select className="form-input" style={{ flex: '1 1 200px', maxWidth: '250px' }}>
-          <option value="">All Industries</option>
-          <option value="Transport & Logistics">Transport & Logistics</option>
-          <option value="Digital & Content Creation">Digital & Content Creation</option>
-          <option value="Agriculture & Farming">Agriculture & Farming</option>
-          <option value="Retail & Market Trading">Retail & Market Trading</option>
-        </select>
-      </div>
+      {/* Loading State */}
+      {loading && (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '4rem 0',
+          gap: '1rem'
+        }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading legislative bills...</p>
+        </div>
+      )}
 
-      {/* Bill List Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-        {placeholderBills.map((bill) => (
-          <div key={bill.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-              <h2 style={{ fontSize: '1.35rem', flex: '1' }}>
-                <a href={`/bills/${bill.id}`} style={{ color: 'white', textDecoration: 'none', transition: 'color 0.2s' }}>
-                  {bill.title}
-                </a>
-              </h2>
-              <span className="badge badge-primary">{bill.status}</span>
-            </div>
-            
-            <p style={{ color: '#cbd5e1', fontSize: '0.95rem' }}>{bill.excerpt}</p>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginTop: '0.5rem' }}>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                {bill.tags.map((tag, idx) => (
-                  <span key={idx} className="badge badge-accent">{tag}</span>
-                ))}
+      {/* Bill Cards List */}
+      {!loading && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '3rem' }}>
+          {bills.map((bill) => (
+            <div key={bill.id} className="content-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                <h2 className="card-title" style={{ flex: '1', minWidth: '240px', fontSize: '1.25rem', lineHeight: '1.3' }}>
+                  <a href={`/bills/${bill.id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>
+                    {bill.title}
+                  </a>
+                </h2>
+                <div>
+                  {getBillTypeTag(bill.bill_type)}
+                </div>
               </div>
-              <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Published: {bill.date}</span>
+
+              <p className="card-description" style={{ marginBottom: '1rem' }}>
+                {bill.excerpt}
+              </p>
+
+              <div style={{
+                display: 'flex',
+                justify: 'flex-end',
+                alignItems: 'center',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid var(--border-color)'
+              }}>
+                <a
+                  href={`/bills/${bill.id}`}
+                  className="card-link"
+                  style={{ fontSize: '0.9rem', fontWeight: 600 }}
+                >
+                  Read Full Bill Summary
+                </a>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 # KeLegislate — Detailed Architectural Design Document
 
-> **Version**: 1.1  
-> **Date**: July 22, 2026  
-> **Status**: Draft — Updated to address architectural concerns (LlamaParse, auth for feedback, custom profiles, VPS contingency)  
+> **Version**: 1.2  
+> **Date**: August 12, 2026  
+> **Status**: Draft — Updated to redesign Impact page (example scenarios + interactive calculator instead of personalized impact), defer custom profiles and login to post-buildathon, reduce auth scope to feedback-only OTP gating. Retains LlamaParse, auth for feedback, and VPS contingency from v1.1  
 > **Scope**: Production architecture for the 8-week buildathon (July 7 – September 5, 2026)
 
 ---
@@ -31,13 +31,13 @@
 
 ## 1. Executive Summary
 
-KeLegislate is a civic technology platform that proactively alerts Kenyan bodaboda riders and transport micro-enterprises about how proposed legislation impacts their livelihood in shillings and cents. The system ingests legislative bills and county regulations, uses AI agents to summarize content, model financial impact, and generate regulatory compliance advice, then delivers personalized alerts via SMS and WhatsApp. The MVP focuses on two bills: the Finance Bill 2024 (motor vehicle value tax) and the Motorcycle Taxi (Boda Boda) Permit Regulations 2025 (regulatory framework for bodaboda riders). The architecture is designed to scale to additional bills, bill types (financial, regulatory, hybrid), and target markets.
+KeLegislate is a civic technology platform that proactively alerts Kenyan bodaboda riders and transport micro-enterprises about how proposed legislation impacts their livelihood in shillings and cents. The system ingests legislative bills and county regulations, uses AI agents to summarize content, model financial impact through example scenarios with hypothetical personas, and generate regulatory compliance advice, then delivers tier-level alerts via SMS and WhatsApp. The MVP focuses on two bills: the Finance Bill 2024 (motor vehicle value tax) and the Motorcycle Taxi (Boda Boda) Permit Regulations 2025 (regulatory framework for bodaboda riders). The architecture is designed to scale to additional bills, bill types (financial, regulatory, hybrid), and target markets.
 
-This document provides the detailed architectural blueprint for building KeLegislate during the 8-week buildathon. It addresses three key structural challenges — synchronous vs. asynchronous execution paths, idempotency/event deduplication, and agent orchestration — as well as additional architectural concerns including: circuit breaker patterns for external service failures, Cloud Run cold start mitigation, RAG embedding strategy, background task error handling, database migration from the existing Firestore prototype, a phased SMS fan-out cap to control costs during testing, a two-tier PDF extraction strategy (LlamaParse + pdfplumber), authentication for feedback integrity (anti-astroturfing), custom user business profiles with encrypted persistence, and VPS as hosting contingency.
+This document provides the detailed architectural blueprint for building KeLegislate during the 8-week buildathon. It addresses three key structural challenges — synchronous vs. asynchronous execution paths, idempotency/event deduplication, and agent orchestration — as well as additional architectural concerns including: circuit breaker patterns for external service failures, Cloud Run cold start mitigation, RAG embedding strategy, background task error handling, database migration from the existing Firestore prototype, a phased SMS fan-out cap to control costs during testing, a two-tier PDF extraction strategy (LlamaParse + pdfplumber), authentication for feedback integrity (anti-astroturfing), and VPS as hosting contingency. Custom user business profiles are deferred to post-buildathon; the Impact page instead uses AI-generated example scenarios with hypothetical personas and an interactive deterministic calculator.
 
 **Key architectural principles**:
 - **Monolith-First Asynchronous Processing** — bills flow through an in-memory FastAPI BackgroundTasks queue within a single Cloud Run service for the buildathon, keeping code modular to allow Pub/Sub scaling post-competition.
-- **Privacy-by-design & KDPA 2019 Compliance** — financial impact is computed in-memory and never persisted; phone numbers are encrypted via Supabase Vault, and custom profiles are encrypted at application level. Consent modals explicitly disclose cross-border storage and rights.
+- **Privacy-by-design & KDPA 2019 Compliance** — financial impact is communicated through generic example scenarios with hypothetical personas (no personal data needed); phone numbers are encrypted via Supabase Vault. Consent modals explicitly disclose cross-border storage and rights. Custom profiles are deferred to post-buildathon.
 - **Deterministic & Explainable (XAI)** — all arithmetic uses a deterministic calculator tool, not LLM math; value extraction uses regex before AI, and all calculated impacts present a clear, Step-by-Step Math Breakdown with citations.
 - **Structural Chunking** — RAG chunking utilizes structural regex splitting (PART, Section, Schedule) to preserve legislative logical boundaries.
 - **Scraper Resiliency** — Sc scraper checks parliament.go.ke but automatically falls back to a local/storage seed directory of pre-downloaded PDF bills if the website is down or timing out.
@@ -53,7 +53,7 @@ This document provides the detailed architectural blueprint for building KeLegis
 
 **Presentation Layer**: The user-facing surface. A Next.js Progressive Web App (PWA) hosted on Vercel's free hobby tier provides the primary web interface — mobile-first, installable, with offline caching of previously viewed bill summaries. To bypass Vercel Hobby's 10-second serverless proxy timeout, the Next.js client component bypasses Vercel's API proxy layer and fetches directly from the Google Cloud Run URL stored in `NEXT_PUBLIC_API_BASE_URL` (with CORS locked to the Vercel domain). SMS and WhatsApp alerts are the push channels, delivered via Africa's Talking.
 
-**API Gateway Layer**: A single FastAPI application deployed on Google Cloud Run (free tier). It serves six distinct API groups: Bills (read bill summaries), Impact (compute financial impact in-memory — never persisted), Feedback (auth-required citizen feedback submission), Dashboard (aggregated statistics with real-time WebSocket updates), Subscribe (manage SMS/WhatsApp alert preferences), and Profile (custom user business profile CRUD — encrypted at rest). All routes pass through an Auth Middleware that verifies Supabase JWT tokens for authenticated endpoints, while allowing unauthenticated access to public bill summaries and predefined-tier impact calculations. CORS is locked to the Vercel frontend domain only.
+**API Gateway Layer**: A single FastAPI application deployed on Google Cloud Run (free tier). It serves five distinct API groups: Bills (read bill summaries), Impact (serve pre-generated example scenarios and compliance checklists), Feedback (auth-required citizen feedback submission), Dashboard (aggregated statistics with real-time WebSocket updates), and Subscribe (manage SMS/WhatsApp alert preferences). All routes pass through an Auth Middleware that verifies Supabase JWT tokens for authenticated endpoints (feedback submission), while allowing unauthenticated access to public bill summaries, impact pages, and dashboard. CORS is locked to the Vercel frontend domain only.
 
 **Event Pipeline Layer**: The asynchronous backbone. Cloud Scheduler triggers the Scraper Job every 6 hours. The scraper uses BeautifulSoup to parse bill listings from parliament.go.ke (with local seed fallback). If the website is down or timing out, the scraper seamlessly falls back to reading pre-downloaded bill PDFs from a designated local seed directory or Supabase Storage bucket. When a new bill is detected (determined by URL hash deduplication — see Section 3.2), an asynchronous background task is triggered locally via FastAPI's native `BackgroundTasks` within the single backend container, running Extract, Chunk/Embed, Summarize, Verify, Translate, and Fan-Out steps sequentially. To prevent silent pipeline stalls if the Cloud Run container is recycled or crashes mid-task, a **Stale Job Recovery Sweep** is run during scraper runs/startup, which queries the database for bills in progress (`ingested`, `extracted`, `summarized`) updated more than 15 minutes ago and re-queues them.
 
@@ -65,7 +65,7 @@ This document provides the detailed architectural blueprint for building KeLegis
 
 **External Services**: Three external dependencies, each with a fallback path. Parliament.go.ke (bill source; if site is down, scraper retries on next scheduled run and checks the local/storage seed bucket fallback). Gemini API (primary AI; fallback: cached responses for previously processed bills; secondary fallback: DeepSeek V4 Flash if Gemini is down). Africa's Talking (SMS delivery; no fallback — if AT is down, messages are marked as failed and queued in the database for retry). OTP delivery uses Africa's Talking custom webhook and a local testing bypass code in Supabase Auth to bypass Twilio carrier blocking.
 
-**Key architectural note on the Impact API**: The arrow from Impact API to PostgreSQL is labeled "In-memory only — Result NOT persisted." The API reads the bill summary and hustle profile (either predefined tier from in-memory dict, or custom profile from the user's encrypted `user_profiles` record) from the database, computes the financial impact via the AI agent entirely in memory, and returns the result to the user. No impact inputs or outputs are written to any persistent store. Custom profile data is stored persistently (encrypted, RLS-protected) but impact *results* are ephemeral.
+**Key architectural note on the Impact API**: The Impact API serves pre-generated content — example scenarios (for financial bills) and compliance checklists (for regulatory bills) — that were generated during the bill processing pipeline and cached in the `tier_impact_cache` table. Unlike the previous design where impact was computed on-demand per-user, example scenarios use hypothetical personas (based on predefined hustle profiles) and are generic, not personal. No user data is needed to view impact content. An optional interactive calculator on the frontend lets users input their own values for client-side deterministic computation — no data is sent to the server.
 
 ---
 
@@ -85,36 +85,21 @@ The asynchronous path uses a **fire-and-forget task execution** model. If the ba
 
 **Synchronous Path — On-Demand User Requests**:
 
-When a user visits the web app and clicks "Calculate My Impact," they are waiting on screen. The request behavior depends on whether they use a predefined tier or a custom business profile:
-1. **Predefined Hustle Tiers (Cached)**: During the background task processing of a bill, the backend pre-computes the financial impact for all 3 predefined hustle tiers across the 8 industries and caches them in `tier_impact_cache`. An on-demand request for a predefined tier is served via an instant database lookup (< 200ms).
-2. **Custom Business Profiles (On-Demand AI)**: If the user provides a custom business profile (authenticated), the FastAPI `/api/impact` endpoint directly invokes the Financial Impact Agent (Gemini 3.5 Flash + Calculator Tool), then the Verification Agent, and returns the result. During the buildathon/testing phase, latency is secondary to correctness — a working, accurate result that takes 25 seconds is far preferable to a fast but broken one. To bypass Vercel's 10-second serverless function timeout, the Next.js client component makes the request directly to the Cloud Run backend URL (`NEXT_PUBLIC_API_BASE_URL`) via CORS, avoiding Vercel's proxy layer entirely.
+When a user visits the web app and views the Impact page, they see pre-generated content. The request behavior depends on the bill type:
+1. **Financial Bills (Cached Example Scenario)**: During the background task processing of a bill, the backend generates an Example Scenario (hypothetical persona + math breakdown) and caches it in `tier_impact_cache`. An on-demand request for a bill's impact page is served via a database lookup (< 200ms).
+2. **Regulatory Bills (Cached Compliance Guide)**: Similarly, the compliance checklist is generated during pipeline processing and served from cache.
+3. **Interactive Calculator (Client-Side)**: The pre-generated `calculator_formula` is served with the example scenario. The frontend uses it for deterministic client-side JavaScript computation — no server round-trip needed.
 
 The architectural separation is enforced at the code level:
 
-| Concern | Async Pipeline | Sync API (Custom Profile) | Sync API (Predefined Tier) |
-|---|---|---|---|
-| **Entry point** | Scraper detection → FastAPI `BackgroundTasks` | HTTP POST `/api/impact` → FastAPI | HTTP POST `/api/impact` → FastAPI |
-| **Timeout** | Up to 60 minutes (FastAPI async background worker loop) | 90 seconds (Cloud Run HTTP timeout, direct client fetch bypasses Vercel 10s limit) | < 2 seconds |
-| **Retry strategy** | Automatic retry loop for transient Gemini API errors | Client-side retry (frontend shows "Retry" button after timeout) | None (instant cache lookup) |
-| **Error handling** | Database logging & status set to `'failed'` | HTTP 504 Gateway Timeout → user sees "Try again" message | Database exception fallback to ephemeral calculation |
-| **Financial Impact Agent**| Runs per subscriber & predefined tier (batch, cost-amortized) | Runs once for requesting user (single invocation, low latency critical) | Serves pre-computed cache, no LLM call |
-| **Result storage** | Summary + Swahili translation + predefined tier impacts cached in Supabase | Impact result returned in HTTP response, **never persisted** | Impact result returned from cache, **never duplicated** |
-
-**Latency budget for synchronous path (custom business profiles)**:
-
-During the buildathon/testing phase, custom business profile requests invoke the live AI agent synchronously. Because AI APIs can be slow under rate limits, the budget below are generous to avoid premature timeouts that break functionality. Direct browser-to-Cloud Run connection guarantees that this request will not be aborted by Vercel's 10-second serverless timeout.
-
-| Step | Buildathon Target | Notes |
+| Concern | Async Pipeline | Sync API (Impact Page) |
 |---|---|---|
-| Auth middleware (JWT verify) | < 200 ms | Supabase JWT local verification, no network call |
-| Fetch bill summary & custom profile | < 500 ms | Decrypted via Supabase Vault |
-| Financial Impact Agent (Gemini 3.5 Flash) | < 15 seconds | ~500 input tokens (summary + profile), ~300 output tokens. AI APIs can be slow under load |
-| Calculator Tool calls | < 50 ms | Deterministic Python, no network |
-| Verification Agent (Gemini 3.5 Flash) | < 10 seconds | ~400 input tokens (impact result + source), ~200 output tokens. Allow for API variability |
-| Response serialization | < 50 ms | Pydantic model → JSON |
-| **Total** | **< 30 seconds** | Acceptable for testing phase; optimize post-buildathon |
-
-**Timeout handling**: The FastAPI endpoint uses `asyncio.wait_for()` with a **90-second timeout** for custom profile calculations. This is deliberately generous for the buildathon to ensure the full AI pipeline (scraping, extraction, agent reasoning, calculator calls, verification) can complete even when Gemini APIs are slowIf the timeout is hit, the endpoint returns HTTP 504 with a user-friendly message ("Our analysis engine is busy — please try again in a moment"). The frontend shows this message with a "Retry" button. For predefined tiers, the lookup is a simple database select index, taking less than 200ms.
+| **Entry point** | Scraper detection → FastAPI `BackgroundTasks` | HTTP GET `/api/impact/{bill_id}` → FastAPI |
+| **Timeout** | Up to 60 minutes (FastAPI async background worker loop) | < 2 seconds (cache lookup) |
+| **Retry strategy** | Automatic retry loop for transient Gemini API errors | None (instant cache lookup) |
+| **Error handling** | Database logging & status set to `'failed'` | Database exception fallback to on-demand generation |
+| **Financial Impact Agent**| Generates example scenario per bill + tier-level impacts for SMS alerts (batch, cost-amortized) | Serves pre-computed cache, no LLM call |
+| **Result storage** | Summary + Swahili translation + example scenarios + tier impacts cached in Supabase | Impact content served from `tier_impact_cache`; interactive calculator runs client-side (no server storage) |
 
 ### 3.2 Idempotency and Event Deduplication
 
@@ -226,11 +211,11 @@ Post-buildathon, when we migrate to Cloud Pub/Sub, we will deploy a dedicated DL
 
 If the Financial Impact Agent runs "per subscriber" during alert fan-out, a 500-subscriber cap would mean up to 500 Gemini 3.5 Flash invocations per bill. At $1.50/$9.00 per 1M tokens, this would be prohibitively expensive.
 
-**Current approach — Tier-Level Caching**: During the buildathon, the Financial Impact Agent runs **per unique hustle tier** matched to the bill (not per subscriber). Since there are only 3 tiers per industry and ~8 industries, the maximum unique impact calculations per bill is 24 (8 industries × 3 tiers), not 500. The per-subscriber alert then simply templates the pre-computed tier-level impact into the SMS/WhatsApp message.
+**Current approach — Tier-Level Caching & Example Scenarios**: During the buildathon, the Financial Impact Agent runs **per unique hustle tier** matched to the bill (not per subscriber). Since there are only 3 tiers per industry and ~8 industries, the maximum unique impact calculations per bill is 24 (8 industries × 3 tiers), not 500. The per-subscriber alert then simply templates the pre-computed tier-level impact into the SMS/WhatsApp message. Additionally, the agent generates an **Example Scenario** for the bill's impact page using the most representative predefined hustle profile as a hypothetical persona.
 
 This reduces Gemini 3.5 Flash calls from O(subscribers) to O(tiers) — a 20x+ reduction.
 
-**Future phase — Per-Subscriber Impact**: Once user profiles are introduced (where users input their specific business details — actual vehicle value, employee count, etc.), the Financial Impact Agent will run per subscriber using their personalized data. This will require a budget re-evaluation, but by that stage the platform will have real users and a clearer revenue/sponsorship model to justify the higher AI costs.
+**Future phase (Post-Buildathon) — Per-Subscriber Impact via Custom Profiles**: Once user profiles are introduced (where users input their specific business details — actual vehicle value, employee count, etc.), the Financial Impact Agent will run per subscriber using their personalized data. This will require a budget re-evaluation, but by that stage the platform will have real users and a clearer revenue/sponsorship model to justify the higher AI costs. In the interim, the interactive calculator on the frontend provides a lightweight way for users to compute personalized figures without server-side AI calls.
 
 ---
 
@@ -252,7 +237,7 @@ The system has three actor types and twelve use cases organized into three packa
 |---|---|---|---|---|---|
 | UC-01 | **Browse Active Bills** | Citizen | View a paginated list of all currently tracked legislative bills with title, date, status, and industry tags | None (public endpoint, no auth required) | Bill list displayed; bills sorted by most recent |
 | UC-02 | **View Bill Summary** | Citizen | Read the AI-generated English or Swahili summary of a specific bill, including key implications for citizens and businesses, with source citations linking to specific bill sections | Bill must have been processed by the AI pipeline (status = `verified`) | Summary displayed with section citations; user can toggle between English and Swahili |
-| UC-03 | **Calculate Personalized Impact** | Citizen | Select an industry and hustle tier (predefined), OR use a saved custom business profile (requires auth), then view a KES-denominated financial impact analysis | Bill must be in `verified` status; user must select an industry and tier from the predefined list, or be authenticated and have a saved custom profile | Impact analysis displayed (KES table, net monthly impact, compliance checklist, risk level). Data is ephemeral — impact result not stored |
+| UC-03 | **View Example Impact Scenario & Compliance Guide** | Citizen | Browse the Impact page (bill list with financial/regulatory filter), then view a specific bill's impact: for financial bills, see a concise summary and an AI-generated Example Scenario showing the math through a hypothetical persona; for regulatory bills, see a concise summary and a Compliance Checklist. Optionally use the interactive calculator to compute personal figures | Bill must be in `verified` status | Impact content displayed (example scenario with math breakdown, or compliance checklist). Interactive calculator available for financial bills (client-side, session-only, no data stored) |
 | UC-04 | **Search/Filter Bills by Industry** | Citizen | Filter the bill list by one or more industry tags to see only legislation relevant to the user's hustle | At least one bill must exist in the system | Filtered bill list displayed |
 
 ### Use Case Package 2: Civic Engagement
@@ -334,17 +319,17 @@ The database schema consists of 9 tables in Supabase PostgreSQL, organized into 
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | When this chunk was embedded |
 | **Unique constraint** | | `UNIQUE(bill_id, chunk_index)` | Prevents duplicate chunks |
 
-**Table: `tier_impact_cache`** (Pre-computed predefined hustle tier impacts)
+**Table: `tier_impact_cache`** (Pre-computed predefined hustle tier impacts and example scenarios/checklists)
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | Auto-generated unique identifier |
 | `bill_id` | UUID | FK → bills.id, ON DELETE CASCADE, NOT NULL, INDEX | The bill this cache belongs to |
-| `industry` | VARCHAR(100) | NOT NULL | Subscribed industry (e.g., "Transport & Logistics") |
-| `tier_label` | VARCHAR(100) | NOT NULL | Predefined hustle tier label (e.g., "Tier 1 — BodaBoda Rider") |
-| `impact_data` | JSONB | NOT NULL | AI-generated financial impact metrics and Step-by-Step Math Breakdown |
+| `industry` | VARCHAR(100) | NOT NULL | Subscribed industry (e.g., "Transport & Logistics"). Can be 'ALL' for bill-wide content |
+| `tier_label` | VARCHAR(100) | NOT NULL | Predefined hustle tier label (e.g., "Tier 1 — BodaBoda Rider"). Can be 'ALL' for bill-wide content |
+| `impact_data` | JSONB | NOT NULL | AI-generated financial impact metrics and Step-by-Step Math Breakdown, OR example scenarios, compliance guides, and calculator formulas |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Cache creation timestamp |
-| **Unique constraint** | | `UNIQUE(bill_id, industry, tier_label)` | Prevents duplicate cache entries for the same bill and tier |
+| **Unique constraint** | | `UNIQUE(bill_id, industry, tier_label)` | Prevents duplicate cache entries |
 
 **Group 2: User Data**
 
@@ -378,7 +363,7 @@ The database schema consists of 9 tables in Supabase PostgreSQL, organized into 
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Submission timestamp |
 | **Unique constraint** | | `UNIQUE(bill_id, user_id)` | One feedback per bill per authenticated user — enforced at database level to prevent astroturfing |
 
-**Table: `user_profiles`** (NEW)
+**Table: `user_profiles`** (DEFERRED TO POST-BUILDATHON)
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
@@ -390,6 +375,9 @@ The database schema consists of 9 tables in Supabase PostgreSQL, organized into 
 | `consent_given_at` | TIMESTAMPTZ | NOT NULL | When the user explicitly consented to store business data |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Profile creation time |
 | `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last modification time |
+
+> [!NOTE]
+> This table is **deferred to post-buildathon**. During the buildathon, the Impact page uses AI-generated example scenarios with hypothetical personas (based on predefined hustle profiles) instead of personalized impact calculations. No custom user data is collected or stored.
 
 **Group 3: System Data**
 
@@ -477,14 +465,14 @@ The Level 0 DFD shows KeLegislate as a single process interacting with four exte
 
 **External Entities**:
 1. **Kenyan Parliament** (data source) — provides raw bill PDFs via the parliament.go.ke website
-2. **Citizen / BodaBoda Rider / Transport Micro-Enterprise** (primary user) — receives bill summaries, financial impact analyses, regulatory compliance advice, and push alerts; provides feedback and subscription preferences
+2. **Citizen / BodaBoda Rider / Transport Micro-Enterprise** (primary user) — receives bill summaries, example impact scenarios with hypothetical personas, regulatory compliance checklists, and push alerts; provides feedback and subscription preferences
 3. **Africa's Talking** (notification provider) — receives formatted alert messages and delivers them as SMS or WhatsApp messages to citizens' phones
 4. **Google Gemini API** (AI service) — receives bill text, prompts, and function call definitions; returns AI-generated summaries, translations, financial reasoning, and verification results
 
 **Data Flows**:
 - Kenyan Parliament → KeLegislate: `Bill PDF Data` (raw PDF files, bill metadata)
-- KeLegislate → Citizen: `Bill Summary` (English + Swahili), `Financial Impact Analysis` (KES-denominated), `Push Alert` (SMS/WhatsApp message)
-- Citizen → KeLegislate: `Feedback` (support stance, rating, concerns), `Subscription Preferences` (phone, industry, language, channel), `Impact Request` (selected bill + hustle tier)
+- KeLegislate → Citizen: `Bill Summary` (English + Swahili), `Example Impact Scenario` (KES-denominated, hypothetical persona) or `Compliance Checklist` (regulatory), `Push Alert` (SMS/WhatsApp message)
+- Citizen → KeLegislate: `Feedback` (support stance, rating, concerns), `Subscription Preferences` (phone, industry, language, channel)
 - KeLegislate → Africa's Talking: `Alert Message` (formatted SMS/WhatsApp text, recipient phone number)
 - Africa's Talking → KeLegislate: `Delivery Receipt` (message status: delivered/failed)
 - KeLegislate → Google Gemini: `Bill Text + Prompt` (structured prompt with bill content and instructions)
@@ -502,7 +490,7 @@ The Level 1 DFD decomposes KeLegislate into five processes and two data stores:
 
 3. **P3: Alert Fan-Out** — Receives analyzed bill data from P2. Queries `D2: Subscriber Store` to find subscribers whose industry tags overlap with the bill's tags. For each matched hustle tier (not per subscriber — tier-level caching), invokes the Financial Impact Agent via the Google Gemini API. Formats personalized alert messages. Sends messages to Africa's Talking external entity for delivery. Logs delivery status in `D2: Subscriber Store` (via the notifications table). Applies the `MAX_SMS_FAN_OUT` cap (500 during testing).
 
-4. **P4: Citizen Interaction** — Receives requests from the Citizen external entity: browse bills, view summaries, calculate impact, submit feedback, manage subscriptions. Reads from `D1: Bill Store` and `D2: Subscriber Store`. For on-demand impact calculations, invokes Google Gemini API synchronously. Returns results directly to the Citizen. Writes feedback to `D1: Bill Store`. Writes subscription changes to `D2: Subscriber Store`.
+4. **P4: Citizen Interaction** — Receives requests from the Citizen external entity: browse bills, view summaries, view example impact scenarios or compliance checklists, submit feedback, manage subscriptions. Reads from `D1: Bill Store` and `D2: Subscriber Store`. For impact content, serves pre-generated example scenarios and compliance checklists from `tier_impact_cache`. Interactive calculator inputs are handled client-side (no server interaction). Writes feedback to `D1: Bill Store`. Writes subscription changes to `D2: Subscriber Store`.
 
 5. **P5: System Monitoring** — Reads from `D1: Bill Store` and `D2: Subscriber Store` to compute dashboard statistics. Aggregates feedback for the insights dashboard. Logs LLM usage for cost tracking. Detects and alerts on pipeline failures.
 
@@ -791,11 +779,11 @@ The system is organized into five component packages, each deployed as a separat
 ### Package 1: Next.js Frontend (Vercel)
 
 **Components**:
-- **Pages Router**: Next.js App Router with routes: `/` (landing), `/bills` (bill list), `/bills/[id]` (bill detail + impact calculator), `/dashboard` (insights), `/subscribe` (alert subscription), `/account` (optional user profile, Phase 4).
+- **Pages Router**: Next.js App Router with routes: `/` (landing), `/bills` (bill list), `/bills/[id]` (bill detail), `/impact` (impact bill list with filter), `/impact/[id]` (impact detail with example scenario or compliance checklist), `/dashboard` (insights), `/subscribe` (alert subscription).
 - **PWA Service Worker**: Caches bill summaries for offline reading. Handles install prompt.
 - **Supabase Client**: Browser-side Supabase SDK for Auth (phone OTP) and Realtime (WebSocket subscriptions for live dashboard).
 - **API Client**: Fetch wrapper for FastAPI backend calls. Handles JWT token refresh, error states, retry logic.
-- **UI Component Library**: Built with vanilla CSS (no Tailwind). Components: BillCard, ImpactTable, FeedbackForm, SubscriptionForm, DashboardCharts (using Recharts), LanguageToggle, ConsentDialog.
+- **UI Component Library**: Built with vanilla CSS (no Tailwind). Components: BillCard, ExampleScenario, ComplianceChecklist, InteractiveCalculator, FeedbackForm, SubscriptionForm, DashboardCharts (using Recharts), LanguageToggle, ConsentDialog.
 
 **Provided interfaces**: Web UI to Citizen. REST API calls to FastAPI Backend.  
 **Required interfaces**: FastAPI Backend REST API. Supabase Auth + Realtime.
@@ -805,7 +793,7 @@ The system is organized into five component packages, each deployed as a separat
 **Components**:
 - **Auth Middleware**: Verifies Supabase JWT tokens. Enforces optional auth (public endpoints work without auth; authenticated endpoints return richer data).
 - **Bills Router**: `GET /api/bills` (list), `GET /api/bills/{id}` (detail). Read-only.
-- **Impact Router**: `POST /api/impact`. Invokes Financial Impact Agent synchronously. No-storage design.
+- **Impact Router**: `GET /api/impact/{bill_id}`. Serves pre-generated example scenario or compliance guide from `tier_impact_cache` table.
 - **Feedback Router**: `POST /api/feedback`. Rate-limited (IP + phone hash dedup).
 - **Subscribe Router**: `POST /api/subscribe`, `DELETE /api/subscribe`. Phone encryption via Supabase Vault.
 - **Dashboard Router**: `GET /api/dashboard/stats`, `GET /api/dashboard/feedback/{bill_id}`. Aggregation queries.
@@ -1102,11 +1090,11 @@ function run_pipeline(bill_id):
 
 This is **explicit, debuggable, and requires no framework**. Each step function (`extract_and_regex`, `summarize`, `verify`, `translate`) takes the state, performs its work, updates the state, and returns it. If any step fails (e.g., Gemini API error after circuit breaker), it sets `state.status = 'failed'` and `state.error` with the reason.
 
-### 13.5 Financial Impact Agent (Separate DAG — Runs per Tier)
+### 13.5 Financial Impact Agent (Separate DAG — Runs per Bill + per Tier)
 
-The Financial Impact Agent runs separately from the bill processing pipeline. It's invoked either:
-- **Asynchronously** by the Notification Service (per unique hustle tier, during alert fan-out)
-- **Synchronously** by the Impact API endpoint (per user request, for on-demand calculations)
+The Financial Impact Agent runs separately from the bill processing pipeline. It's invoked:
+- **Asynchronously** by the Pipeline Orchestrator to generate an Example Scenario (financial bills) or Compliance Checklist (regulatory bills) for the bill's impact page, and to compute tier-level impact summaries for SMS alert content
+- **On-demand** by the Impact API endpoint as a fallback if the cached content is missing (e.g., for newly processed bills before the background task completes)
 
 Its DAG is simpler — two steps with one retry edge:
 
@@ -1196,7 +1184,7 @@ These are the agreed-upon API endpoints. The API contracts are already establish
 |---|---|---|---|---|
 | `GET` | `/api/bills` | Query params: `?page=1&limit=20&industry=Transport` | `{bills: [{id, title, tags, date, status}], total, page}` | Paginated list of processed bills |
 | `GET` | `/api/bills/{id}` | — | `{id, title, summary_en, summary_sw, tags, regex_extractions, source_url, date}` | Full bill detail with summaries |
-| `POST` | `/api/impact` | `{bill_id, industry, tier, use_custom_profile?}` | `{impact_table, net_monthly, compliance_checklist, risk_level, verified, disclaimer?}` | On-demand financial impact (ephemeral). If `use_custom_profile=true` and JWT present, uses saved custom profile instead of predefined tier |
+| `GET` | `/api/impact/{bill_id}` | — | `{concise_summary, example_scenario?, compliance_checklist?, calculator_formula?, risk_level, sources, pdf_url}` | Retrieve pre-generated example scenario (financial bills) or compliance checklist (regulatory bills) |
 | `GET` | `/api/dashboard/stats` | Query params: `?bill_id=abc` | `{total_feedback, support_pct, avg_rating, top_concerns}` | Aggregated dashboard stats |
 
 ### 15.2 Authenticated Endpoints (Supabase JWT Required)
@@ -1207,9 +1195,9 @@ These are the agreed-upon API endpoints. The API contracts are already establish
 | `POST` | `/api/subscribe` | `{phone, industries[], language, channels[]}` | `{subscriber_id, status: "active"}` | Create/update subscription |
 | `DELETE` | `/api/subscribe` | — | `{status: "inactive"}` | Deactivate subscription |
 | `GET` | `/api/subscribe/status` | — | `{is_active, industries, language, channels}` | Check subscription status |
-| `POST` | `/api/profile` | `{industry, tier_label?, custom_metrics}` | `{profile_id, created_at}` | Create or update custom business profile (encrypted at rest) |
-| `GET` | `/api/profile` | — | `{industry, tier_label, custom_metrics, created_at, updated_at}` | Retrieve user's custom business profile |
-| `DELETE` | `/api/profile` | — | `{status: "deleted"}` | Delete custom business profile permanently |
+| `POST` | `/api/profile` | — | — | **(DEFERRED TO POST-BUILDATHON)** |
+| `GET` | `/api/profile` | — | — | **(DEFERRED TO POST-BUILDATHON)** |
+| `DELETE` | `/api/profile` | — | — | **(DEFERRED TO POST-BUILDATHON)** |
 
 ### 15.3 Internal/Webhook Endpoints
 
@@ -1242,10 +1230,11 @@ These are the agreed-upon API endpoints. The API contracts are already establish
 |---|---|---|---|
 | **Phone numbers** | AES-256 encrypted via Supabase Vault | TLS 1.3 | Decrypted only at alert send time; decryption logged in `audit_log` |
 | **Phone hashes** | SHA-256 (irreversible) | TLS 1.3 | Used for lookups and deduplication; cannot be reversed to phone number |
-| **Custom business profiles** | Application-level encryption (JSONB `custom_metrics` field encrypted before storage) + Supabase encryption at rest | TLS 1.3 | RLS: only the owning user (`user_id = auth.uid()`) can read/write. Decryption logged in `audit_log` |
+| **Custom business profiles** | **DEFERRED TO POST-BUILDATHON** | N/A | N/A | Not implemented during buildathon. Example scenarios use predefined profiles with hypothetical personas instead |
 | **Bill text** | Supabase PostgreSQL (encrypted at rest by Supabase) | TLS 1.3 | Public data (bills are public documents) |
 | **Feedback** | Supabase PostgreSQL | TLS 1.3 | RLS: users can only read their own feedback (by `user_id`). Aggregated stats are public (for dashboard) |
-| **Financial impact results** | **Not stored** — computed in-memory only | TLS 1.3 (API response) | Ephemeral; discarded after HTTP response |
+| **Example scenario results** | Supabase PostgreSQL (`tier_impact_cache` table) | TLS 1.3 | Public data (generic, not personal — generated from predefined profiles with hypothetical personas) |
+| **Interactive calculator inputs** | **Not stored** — client-side JavaScript only, session-based | N/A | Ephemeral; exists only in browser component state, never sent to server |
 
 ### 16.3 Row Level Security (RLS) Policies
 
@@ -1256,7 +1245,7 @@ These are the agreed-upon API endpoints. The API contracts are already establish
 | `bill_chunks` | No direct access (internal only) | Only accessed by backend service role |
 | `subscribers` | `SELECT`, `UPDATE`, `DELETE` WHERE `user_id = auth.uid()` | Users can only manage their own subscription |
 | `feedback` | `INSERT` WHERE `auth.uid() IS NOT NULL`; `SELECT` WHERE `user_id = auth.uid()` OR aggregated (for dashboard) | Only authenticated users can submit; users can only read their own individual feedback |
-| `user_profiles` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` WHERE `user_id = auth.uid()` | Users can only manage their own business profile |
+| `user_profiles` | **DEFERRED TO POST-BUILDATHON** | Table exists in schema but is not used during buildathon. RLS policies will be configured when custom profiles are implemented post-buildathon |
 | `notifications` | `SELECT` WHERE `subscriber_id` matches user's subscriber record | Users can view their own notification history |
 | `llm_usage_log` | No public access | Admin/system only |
 | `audit_log` | No public access | Admin/system only |

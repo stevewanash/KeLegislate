@@ -7,14 +7,14 @@ export default function DashboardPage() {
 
   const mockStats = {
     "1": {
-      title: "The Motor Vehicle Circulation Tax Bill, 2026",
+      title: "The Finance Bill, 2024",
       responses: 124,
       avg_rating: 1.8,
       support_pct: { support: 12, oppose: 78, neutral: 10 },
       concerns: ["Annual fee burden", "Direct hit on BodaBoda daily margins", "Strict penalty guidelines", "Verification complexity"]
     },
     "2": {
-      title: "The Digital Marketplace Regulation Bill, 2026",
+      title: "Nairobi Motorcycle Taxi (Boda Boda) Permit Regulations 2025",
       responses: 86,
       avg_rating: 2.5,
       support_pct: { support: 30, oppose: 55, neutral: 15 },
@@ -26,9 +26,9 @@ export default function DashboardPage() {
 
   return (
     <div className="container animate-fade-in">
-      <div style={{ marginBottom: '3rem' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>Insights Dashboard</h1>
-        <p style={{ color: '#cbd5e1' }}>Aggregated citizen sentiment and feedback statistics on active bills.</p>
+      <div className="page-header" style={{ marginBottom: '2rem' }}>
+        <h1 className="page-title">Insights Dashboard</h1>
+        <p className="page-subtitle">Aggregated citizen sentiment and feedback statistics on transport bills.</p>
       </div>
 
       {/* Selector dropdown */}
@@ -46,80 +46,80 @@ export default function DashboardPage() {
         </select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
         {/* Sentiment Distribution Card */}
-        <div className="glass-card">
-          <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Support Stance Stature</h3>
+        <div className="content-card">
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '1.25rem', color: 'var(--text-primary)' }}>Support Stance Distribution</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {/* Oppose */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: '#ef4444', fontWeight: 600 }}>Oppose ({activeStats.support_pct.oppose}%)</span>
-                <span>{Math.round(activeStats.responses * activeStats.support_pct.oppose / 100)} citizens</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Oppose ({activeStats.support_pct.oppose}%)</span>
+                <span style={{ color: 'var(--text-muted)' }}>{Math.round(activeStats.responses * activeStats.support_pct.oppose / 100)} responses</span>
               </div>
-              <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${activeStats.support_pct.oppose}%`, height: '100%', background: '#ef4444', borderRadius: '5px' }}></div>
+              <div style={{ width: '100%', height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${activeStats.support_pct.oppose}%`, height: '100%', background: '#64748b', borderRadius: '4px' }}></div>
               </div>
             </div>
             
             {/* Support */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: '#10b981', fontWeight: 600 }}>Support ({activeStats.support_pct.support}%)</span>
-                <span>{Math.round(activeStats.responses * activeStats.support_pct.support / 100)} citizens</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Support ({activeStats.support_pct.support}%)</span>
+                <span style={{ color: 'var(--text-muted)' }}>{Math.round(activeStats.responses * activeStats.support_pct.support / 100)} responses</span>
               </div>
-              <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${activeStats.support_pct.support}%`, height: '100%', background: '#10b981', borderRadius: '5px' }}></div>
+              <div style={{ width: '100%', height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${activeStats.support_pct.support}%`, height: '100%', background: '#5b46f6', borderRadius: '4px' }}></div>
               </div>
             </div>
 
             {/* Neutral */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: '#f59e0b', fontWeight: 600 }}>Neutral ({activeStats.support_pct.neutral}%)</span>
-                <span>{Math.round(activeStats.responses * activeStats.support_pct.neutral / 100)} citizens</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Neutral ({activeStats.support_pct.neutral}%)</span>
+                <span style={{ color: 'var(--text-muted)' }}>{Math.round(activeStats.responses * activeStats.support_pct.neutral / 100)} responses</span>
               </div>
-              <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${activeStats.support_pct.neutral}%`, height: '100%', background: '#f59e0b', borderRadius: '5px' }}></div>
+              <div style={{ width: '100%', height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${activeStats.support_pct.neutral}%`, height: '100%', background: '#94a3b8', borderRadius: '4px' }}></div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Core Statistics Card */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div className="content-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Feedback Summary</h3>
-            <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '1.25rem', color: 'var(--text-primary)' }}>Feedback Overview</h3>
+            <div style={{ display: 'flex', gap: '2.5rem', marginBottom: '1.5rem' }}>
               <div>
-                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Total Responses</div>
-                <div style={{ fontSize: '2rem', fontWeight: 800 }}>{activeStats.responses}</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Total Responses</div>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{activeStats.responses}</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Avg Rating</div>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: '#f59e0b' }}>
-                  {activeStats.avg_rating} <span style={{ fontSize: '1.25rem' }}>★</span>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Average Rating</div>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--primary)' }}>
+                  {activeStats.avg_rating} / 10
                 </div>
               </div>
             </div>
           </div>
 
-          <div style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)', padding: '1rem', borderRadius: '8px' }}>
-            <h5 style={{ color: '#a5b4fc', marginBottom: '0.25rem', fontSize: '0.9rem' }}>Real-time Sync Active</h5>
-            <p style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>Listening to Supabase PostgreSQL WAL broadcasts. Chart updates live as new citizen feedback is submitted.</p>
+          <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', padding: '0.85rem', borderRadius: '6px' }}>
+            <h4 style={{ color: 'var(--text-primary)', marginBottom: '0.2rem', fontSize: '0.85rem', fontWeight: 600 }}>Data Synchronization</h4>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Aggregated anonymously from verified citizen feedback submissions.</p>
           </div>
         </div>
 
         {/* Top Concerns list */}
-        <div className="glass-card" style={{ gridColumn: 'span 1' }}>
-          <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Top Public Concerns</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div className="content-card" style={{ gridColumn: 'span 1' }}>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>Top Public Concerns</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {activeStats.concerns.map((concern, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(10,13,22,0.4)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'var(--primary-glow)', color: '#a5b4fc', fontSize: '0.8rem', fontWeight: 700 }}>
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.85rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '50%', background: '#e2e8f0', color: 'var(--text-primary)', fontSize: '0.75rem', fontWeight: 700 }}>
                   {idx + 1}
                 </span>
-                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>{concern}</span>
+                <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>{concern}</span>
               </div>
             ))}
           </div>
