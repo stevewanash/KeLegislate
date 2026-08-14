@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { sendPhoneOtp, verifyPhoneOtp } from '../lib/supabase';
+import { formatE164, isValidKenyanPhone } from '../lib/phone';
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
@@ -13,23 +14,13 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
-  // Format phone number to E.164 (+254XXXXXXXXX)
-  const formatPhoneNumber = (raw) => {
-    const cleaned = raw.replace(/[\s\-().]/g, '');
-    if (cleaned.startsWith('+254') && cleaned.length === 13) return cleaned;
-    if (cleaned.startsWith('254') && cleaned.length === 12) return `+${cleaned}`;
-    if (cleaned.startsWith('0') && cleaned.length === 10) return `+254${cleaned.slice(1)}`;
-    if (cleaned.length === 9) return `+254${cleaned}`;
-    return raw;
-  };
-
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setInfoMsg('');
 
-    const formatted = formatPhoneNumber(phone.trim());
-    if (!/^\+254\d{9}$/.test(formatted)) {
+    const formatted = formatE164(phone.trim());
+    if (!isValidKenyanPhone(formatted)) {
       setErrorMsg('Please enter a valid Kenyan phone number (e.g., 0712345678 or +254712345678)');
       return;
     }
@@ -126,7 +117,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                 disabled={loading}
               />
               <span className="form-hint">
-                Demo test number: <code>+254700000000</code> (code: <code>123456</code>)
+                Demo test number: <code>+254111721222</code> (code: <code>123456</code>)
               </span>
             </div>
 

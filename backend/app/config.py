@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     AFRICAS_TALKING_SENDER_ID: str | None = None
     
     SUPABASE_SMS_WEBHOOK_SECRET: str
+    AT_DELIVERY_WEBHOOK_SECRET: str | None = None
     
     MAX_SMS_FAN_OUT: int = 500
     ENCRYPTION_KEY: str
@@ -60,6 +61,7 @@ except Exception as e:
         AFRICAS_TALKING_API_KEY = os.environ.get("AFRICAS_TALKING_API_KEY", "mock-at-key")
         AFRICAS_TALKING_SENDER_ID = os.environ.get("AFRICAS_TALKING_SENDER_ID", None)
         SUPABASE_SMS_WEBHOOK_SECRET = os.environ.get("SUPABASE_SMS_WEBHOOK_SECRET", "mock-secret")
+        AT_DELIVERY_WEBHOOK_SECRET = os.environ.get("AT_DELIVERY_WEBHOOK_SECRET", None)
         MAX_SMS_FAN_OUT = int(os.environ.get("MAX_SMS_FAN_OUT", "500"))
         ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "mock-encryption-key-32-bytes-long-!")
         API_SECRET_TOKEN = os.environ.get("API_SECRET_TOKEN", "mock-api-token")

@@ -556,7 +556,6 @@ When a user clicks on a **regulatory bill** in the Impact section, they see a co
 
 - Build `/subscribe`:
   - Phone number input with E.164 validation (inline).
-  - Industry checkboxes (multi-select from 8 options).
   - Language radio (English/Swahili).
   - Channel selection (SMS/WhatsApp/both).
   - Consent dialog with privacy explanation.
@@ -567,11 +566,8 @@ When a user clicks on a **regulatory bill** in the Impact section, they see a co
 
 - Implement `services/notifier.py`:
   - Accepts a `bill_id`.
-  - Fetches the bill's tags from `bill_tags`.
-  - Queries `subscribers` for active subscribers whose `industry_tags` overlap with the bill's tags.
-  - Groups matched subscribers by hustle tier.
-  - For each unique tier, invokes the Financial Impact Agent (from Phase 2) to compute the tier-level impact.
-  - Formats SMS messages using the impact result and subscriber's preferred language.
+  - If a bill's financial or regulatory impact has been determined, format SMS messages using the impact result and subscriber's preferred language. If not computed yet, wait for it to be computed.
+  - NOTE: The message should not contain any values to avoid causing panic/outrage, it should simply briefly inform the subscriber about the bill and direct them to the website to view the impact details or ask them to go to a nearby public participation forum.
   - Sends via Africa's Talking (single send first — batch sending is Phase 8).
   - Creates `notifications` records with status tracking.
   - Enforces `MAX_SMS_FAN_OUT` (500 default, via env var).
@@ -589,7 +585,8 @@ When a user clicks on a **regulatory bill** in the Impact section, they see a co
 
 - Implement `api/feedback.py`:
   - `POST /api/feedback`: Accepts `{bill_id, support, rating, concerns}`.
-  - **Requires authentication** — JWT must be present in the Authorization header. Return HTTP 401 if missing.
+  - **Requires OTP authentication** — JWT must be present in the Authorization header. Return HTTP 401 if missing.
+  - NOTE: Login is no longer needed, only OTP authentication is required for feedback.
   - Extracts `user_id` from the verified JWT.
   - Inserts into `feedback` table with `user_id`.
   - The `UNIQUE(bill_id, user_id)` constraint prevents duplicate submissions at the database level.
@@ -605,7 +602,7 @@ The feedback form component was already built in Phase 3 (Steps 3.5, 3.7, and 3.
 - On HTTP 409 (duplicate): show "You've already submitted feedback for this bill" on whichever page the user is on.
 - Success toast animation and state reset after submission.
 
-### Step 4.7 — Interactive Calculator (Nice-to-Have)
+### Step 4.7 — Interactive Calculator (Already been done)
 
 After reading the example scenario on the financial impact detail page, users may want to compute their own numbers. The interactive calculator provides this without requiring any user data to be stored or sent to a server.
 
@@ -626,13 +623,14 @@ After reading the example scenario on the financial impact detail page, users ma
   - Global stats (total bills, total feedback) when no `bill_id` is provided.
 
 ### Step 4.10 — Insights Dashboard UI
-
+It gets data from the feedback table
 - Build `/dashboard`:
   - Bill selector (dropdown or click from bill list).
   - Pie chart: support distribution (Support/Oppose/Neutral).
   - Bar chart: rating distribution (1-5 stars).
   - Key metrics: total responses, average rating, support percentage.
   - Common concerns list (top extracted keywords/phrases).
+  - Incorporate more visual elements such as pie charts, word clouds and any other good ones. 
   - AI-generated insights button (calls Gemini to analyze aggregated feedback — same as prototype's `generate_insights`).
 
 ### Step 4.10 — End-to-End Smoke Test

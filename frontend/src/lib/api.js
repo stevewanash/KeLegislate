@@ -51,10 +51,9 @@ export const api = {
   },
 
   // Legacy calculateImpact fallback
-  async calculateImpact(billId, industry = 'ALL', tier = 'ALL', useCustomProfile = false, token = null) {
+  async calculateImpact(billId, industry = 'ALL', tier = 'ALL', token = null) {
     return fetchJson(`/impact/${billId}`);
   },
-
 
   // Feedback API (Auth Required)
   async submitFeedback(billId, support, rating, concerns = null, token) {
@@ -73,72 +72,32 @@ export const api = {
   },
 
   // Subscription API
-  async subscribe(phone, industries, language = 'en', channels = ['sms'], token = null) {
+  async subscribe(phone, language = 'en', channels = ['sms'], token = null) {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return fetchJson('/subscribe', {
       method: 'POST',
       headers,
       body: JSON.stringify({
         phone,
-        industries,
         language,
         channels,
       }),
     });
   },
 
-  async unsubscribe(token) {
-    return fetchJson('/subscribe', {
+  async unsubscribe(phone) {
+    return fetchJson(`/subscribe?phone=${encodeURIComponent(phone)}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
   },
 
-  async getSubscriptionStatus(token) {
-    return fetchJson('/subscribe/status', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  },
-
-  // Custom User Profile API (Auth Required)
-  async saveProfile(industry, tierLabel = null, customMetrics = {}, token) {
-    return fetchJson('/profile', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        industry,
-        tier_label: tierLabel,
-        custom_metrics: customMetrics,
-      }),
-    });
-  },
-
-  async getProfile(token) {
-    return fetchJson('/profile', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  },
-
-  async deleteProfile(token) {
-    return fetchJson('/profile', {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  async getSubscriptionStatus(phone) {
+    return fetchJson(`/subscribe/status?phone=${encodeURIComponent(phone)}`);
   },
 
   // Dashboard API
   async getDashboardStats(billId = null) {
-    const query = billId ? `?bill_id=${billId}` : '';
+    const query = billId ? `?bill_id=${encodeURIComponent(billId)}` : '';
     return fetchJson(`/dashboard/stats${query}`);
   },
 };

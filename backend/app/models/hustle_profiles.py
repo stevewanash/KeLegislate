@@ -16,6 +16,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Active target sector for single-industry focus
+ACTIVE_INDUSTRY = "Transport & Logistics"
+
 # Canonical industry taxonomy — used by both the LLM auto-tagger and the UI.
 
 # The LLM prompt instructs Gemini to pick ONLY from this list (W7).

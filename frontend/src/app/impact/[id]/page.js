@@ -364,7 +364,7 @@ export default function ImpactDetailPage() {
 
                 <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                   <label className="form-label">Do you support this bill?</label>
-                  <div className="stance-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                  <div className="stance-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginTop: '0.5rem' }}>
                     <button
                       type="button"
                       className={`stance-btn ${support === 'support' ? 'active' : ''}`}
@@ -379,18 +379,25 @@ export default function ImpactDetailPage() {
                     >
                       Oppose
                     </button>
+                    <button
+                      type="button"
+                      className={`stance-btn ${support === 'neutral' ? 'active' : ''}`}
+                      onClick={() => setSupport('neutral')}
+                    >
+                      Neutral
+                    </button>
                   </div>
                 </div>
 
                 <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                   <div className="slider-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                    <label className="form-label" style={{ marginBottom: 0 }}>Level of Support (1 to 10)</label>
-                    <span className="slider-value" style={{ fontWeight: 700, color: 'var(--primary)' }}>{rating}/10</span>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Level of Priority / Rating (1 to 5)</label>
+                    <span className="slider-value" style={{ fontWeight: 700, color: 'var(--primary)' }}>{rating} / 5</span>
                   </div>
                   <input
                     type="range"
                     min="1"
-                    max="10"
+                    max="5"
                     value={rating}
                     onChange={(e) => setRating(Number(e.target.value))}
                     className="range-input"

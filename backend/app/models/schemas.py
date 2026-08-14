@@ -66,7 +66,6 @@ class ImpactRequest(BaseModel):
     bill_id: str
     industry: Optional[str] = "ALL"
     tier: Optional[str] = "ALL"
-    use_custom_profile: bool = False
 
 class ImpactItem(BaseModel):
     """Structured model for a single financial impact line item."""
@@ -129,9 +128,12 @@ class FeedbackResponse(BaseModel):
 # ==========================================
 class SubscribeRequest(BaseModel):
     phone: str  # E.164 format
-    industries: List[str]
-    language: str = "en"  # 'en' or 'sw'
-    channels: List[str] = ["sms"]  # 'sms', 'whatsapp'
+    industries: Optional[List[str]] = Field(default=None, description="Target industry sectors. Defaults to ACTIVE_INDUSTRY if omitted/empty.")
+    language: Literal["en", "sw"] = "en"
+    channels: List[Literal["sms", "whatsapp"]] = ["sms"]
+
+class UnsubscribeRequest(BaseModel):
+    phone: str
 
 class SubscribeResponse(BaseModel):
     subscriber_id: str
@@ -143,23 +145,13 @@ class SubscriptionStatusResponse(BaseModel):
     preferred_language: str
     channels: List[str]
 
-# ==========================================
-# CUSTOM PROFILE SCHEMAS
-# ==========================================
-class ProfileRequest(BaseModel):
-    industry: str
-    tier_label: Optional[str] = None
-    custom_metrics: Dict[str, Any]
+class SendAlertsResponse(BaseModel):
+    bill_id: str
+    subscribers_found: int
+    alerts_sent: int
+    alerts_failed: int
+    alerts_skipped: int = 0
 
-class ProfileResponse(BaseModel):
-    id: str
-    user_id: str
-    industry: str
-    tier_label: Optional[str] = None
-    custom_metrics: Dict[str, Any]
-    consent_given_at: datetime
-    created_at: datetime
-    updated_at: datetime
 
 # ==========================================
 # DASHBOARD SCHEMAS

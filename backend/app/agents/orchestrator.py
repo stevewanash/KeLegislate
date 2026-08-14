@@ -116,40 +116,49 @@ def run_pipeline(bill_id: str, force: bool = False) -> PipelineState:
         # Step 2: Summarization Agent
         logger.info(f"Pipeline Stage 2 [Summarization] executing for bill_id: {bill_id}")
         sum_res = summarize_bill(bill_id, force=force)
-        state.step_results["summarization"] = sum_res
-        if sum_res.get("status") == "error":
+        if isinstance(sum_res, dict) and sum_res.get("status") == "error":
             logger.error(f"Summarization failed for bill {bill_id}; aborting pipeline.")
             state.status = "failed"
             state.error_message = f"Summarization failed: {sum_res.get('error', 'unknown error')}"
             _update_failed_status_in_db(bill_id)
             return state
 
+        state.step_results["summarization"] = (
+            sum_res.model_dump() if hasattr(sum_res, "model_dump")
+            else (sum_res if isinstance(sum_res, dict) else {"summary_en": str(sum_res)})
+        )
         state.status = "summarized"
 
         # Step 3: Verification Agent
         logger.info(f"Pipeline Stage 3 [Verification] executing for bill_id: {bill_id}")
         ver_res = verify_bill_claims(bill_id, force=force)
-        state.step_results["verification"] = ver_res
-        if ver_res.get("status") == "error":
+        if isinstance(ver_res, dict) and ver_res.get("status") == "error":
             logger.error(f"Verification failed for bill {bill_id}; aborting pipeline.")
             state.status = "failed"
             state.error_message = f"Verification failed: {ver_res.get('error', 'unknown error')}"
             _update_failed_status_in_db(bill_id)
             return state
 
+        state.step_results["verification"] = (
+            ver_res.model_dump() if hasattr(ver_res, "model_dump")
+            else (ver_res if isinstance(ver_res, dict) else {"verified": True})
+        )
         state.status = "verified"
 
         # Step 4: Translation Agent
         logger.info(f"Pipeline Stage 4 [Translation] executing for bill_id: {bill_id}")
         trans_res = translate_bill(bill_id, force=force)
-        state.step_results["translation"] = trans_res
-        if trans_res.get("status") == "error":
+        if isinstance(trans_res, dict) and trans_res.get("status") == "error":
             logger.error(f"Translation failed for bill {bill_id}; aborting pipeline.")
             state.status = "failed"
             state.error_message = f"Translation failed: {trans_res.get('error', 'unknown error')}"
             _update_failed_status_in_db(bill_id)
             return state
 
+        state.step_results["translation"] = (
+            trans_res.model_dump() if hasattr(trans_res, "model_dump")
+            else (trans_res if isinstance(trans_res, dict) else {"summary_sw": str(trans_res)})
+        )
         state.status = "translated"
         state.updated_at = datetime.now(timezone.utc).isoformat()
         logger.info(f"DAG pipeline run completed successfully for bill_id: {bill_id} with status: {state.status}")
