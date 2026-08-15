@@ -139,7 +139,7 @@ export default function SubscribePage() {
             {/* Phone input */}
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
               <label className="form-label">Kenyan Mobile Number</label>
-              <input 
+              <input
                 type="tel"
                 className="form-input"
                 placeholder="e.g. 0712345678 or +254712345678"
@@ -156,9 +156,9 @@ export default function SubscribePage() {
               <label className="form-label">Preferred Alert Language</label>
               <div style={{ display: 'flex', gap: '2rem', marginTop: '0.35rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-                  <input 
-                    type="radio" 
-                    name="language" 
+                  <input
+                    type="radio"
+                    name="language"
                     value="en"
                     checked={language === 'en'}
                     onChange={() => setLanguage('en')}
@@ -166,9 +166,9 @@ export default function SubscribePage() {
                   <span>English</span>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-                  <input 
-                    type="radio" 
-                    name="language" 
+                  <input
+                    type="radio"
+                    name="language"
                     value="sw"
                     checked={language === 'sw'}
                     onChange={() => setLanguage('sw')}
@@ -183,8 +183,8 @@ export default function SubscribePage() {
               <label className="form-label">Alert Channel</label>
               <div style={{ display: 'flex', gap: '2rem', marginTop: '0.35rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'default', fontSize: '0.9rem' }}>
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={true}
                     readOnly
                   />
@@ -196,22 +196,22 @@ export default function SubscribePage() {
             {/* Consent Checkbox */}
             <div className="form-group" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', marginBottom: '1.5rem' }}>
               <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer' }}>
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={consent}
                   onChange={() => setConsent(!consent)}
                   required
                   style={{ marginTop: '0.15rem', cursor: 'pointer' }}
                 />
                 <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
-                  I consent to KeLegislate processing my phone number to deliver legislative alerts in compliance with the Kenya Data Protection Act (KDPA) 2019.
+                  I consent to hustleyetu processing my phone number to deliver legislative alerts in compliance with the Kenya Data Protection Act (KDPA) 2019.
                 </span>
               </label>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn-primary-purple" 
+            <button
+              type="submit"
+              className="btn-primary-purple"
               disabled={submitting}
             >
               {submitting ? "Signing Up..." : "Confirm Subscription"}
@@ -243,7 +243,7 @@ export default function SubscribePage() {
 
         <form onSubmit={handleCheckStatus} style={{ marginBottom: '1rem' }}>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <input 
+            <input
               type="tel"
               className="form-input"
               placeholder="e.g. 0712345678"
@@ -252,8 +252,8 @@ export default function SubscribePage() {
               required
               style={{ flex: 1, minWidth: '200px' }}
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="stance-btn"
               disabled={checkingStatus}
             >

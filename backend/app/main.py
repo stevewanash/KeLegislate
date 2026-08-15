@@ -4,14 +4,14 @@ from app.api import bills, impact, feedback, subscribe, dashboard, webhooks, adm
 
 
 app = FastAPI(
-    title="KeLegislate API",
+    title="Hustleyetu API",
     description="Proactive civic technology platform that alerts Kenyan bodaboda riders and transport micro-enterprises about how proposed legislation impacts their livelihood — delivering financial impact analysis and regulatory compliance advice in shillings and cents.",
     version="1.0.0"
 )
 
 # CORS setup
 origins = [
-    "https://kelegislate.vercel.app",
+    "https://hustleyetu.vercel.app",
     "http://localhost:3000",
 ]
 

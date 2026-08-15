@@ -1,4 +1,4 @@
-# KeLegislate
+# Hustleyetu
 > Built during the **Democracy & AI Hackathon** — July 4th, 2026 Hosted by **Mozilla Foundation** & **KamiLimu**
 
 ---

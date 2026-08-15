@@ -94,3 +94,62 @@ def test_supabase_auth_send_sms_direct_alias_route():
         assert response.status_code == 200
         assert response.json() == {}
         mock_send_sms.assert_called_once_with(phone="+254700000000", message="Verification code: 123456")
+
+
+def test_supabase_auth_send_sms_bearer_token():
+    payload = {
+        "phone": "+254711223344",
+        "text": "Verification code: 888888"
+    }
+    headers = {"Authorization": f"Bearer {TEST_SECRET}"}
+
+    with patch("app.api.webhooks.settings.SUPABASE_SMS_WEBHOOK_SECRET", TEST_SECRET), \
+         patch("app.api.webhooks.settings.TESTING", False), \
+         patch("app.api.webhooks.send_sms") as mock_send_sms:
+
+        mock_send_sms.return_value = {"status": "success"}
+
+        response = client.post("/api/webhooks/auth/send-sms", json=payload, headers=headers)
+        assert response.status_code == 200
+        assert response.json() == {}
+        mock_send_sms.assert_called_once_with(phone="+254711223344", message="Verification code: 888888")
+
+
+def test_supabase_auth_send_sms_svix_signature():
+    import hmac
+    import hashlib
+    import base64
+    import json
+
+    raw_secret_b64 = "c29tZXNlY3JldGtleWZvcnRlc3Rpbmc="  # base64 encoded secret
+    full_secret = f"v1,whsec_{raw_secret_b64}"
+    msg_id = "msg_test_12345"
+    msg_timestamp = "1785148000"
+    payload = {
+        "phone": "+254711998877",
+        "text": "Verification code: 999999"
+    }
+    raw_body = json.dumps(payload).encode("utf-8")
+    
+    secret_bytes = base64.b64decode(raw_secret_b64)
+    to_sign = f"{msg_id}.{msg_timestamp}.".encode("utf-8") + raw_body
+    sig = base64.b64encode(hmac.new(secret_bytes, to_sign, hashlib.sha256).digest()).decode("utf-8")
+
+    headers = {
+        "webhook-id": msg_id,
+        "webhook-timestamp": msg_timestamp,
+        "webhook-signature": f"v1,{sig}",
+        "Content-Type": "application/json"
+    }
+
+    with patch("app.api.webhooks.settings.SUPABASE_SMS_WEBHOOK_SECRET", full_secret), \
+         patch("app.api.webhooks.settings.TESTING", False), \
+         patch("app.api.webhooks.send_sms") as mock_send_sms:
+
+        mock_send_sms.return_value = {"status": "success"}
+
+        response = client.post("/api/webhooks/auth/send-sms", content=raw_body, headers=headers)
+        assert response.status_code == 200
+        assert response.json() == {}
+        mock_send_sms.assert_called_once_with(phone="+254711998877", message="Verification code: 999999")
+

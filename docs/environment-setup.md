@@ -1,6 +1,6 @@
 # Local Development Environment Setup Guide
 
-Follow this guide to set up and run the KeLegislate platform locally.
+Follow this guide to set up and run the hustleyetu platform locally.
 
 ---
 
@@ -85,4 +85,4 @@ Fill in the credentials you recorded during the Supabase setup:
    ```bash
    npm run dev
    ```
-4. Verify by opening [http://localhost:3000](http://localhost:3000) in your browser. You should see the KeLegislate landing page.
+4. Verify by opening [http://localhost:3000](http://localhost:3000) in your browser. You should see the Hustleyetu landing page.

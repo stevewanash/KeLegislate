@@ -51,7 +51,7 @@ export default function Header() {
         <div className="container app-header-inner">
           <a href="/" className="brand-logo" style={{ textDecoration: 'none' }}>
             <span style={{ fontFamily: 'var(--font-title)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-              KeLegislate
+              HustleYeTu
             </span>
           </a>
 
@@ -77,9 +77,9 @@ export default function Header() {
             {user && (
               <div className="user-profile-pill">
                 <span>{formatUserPhone(user.phone)}</span>
-                <button 
-                  className="logout-icon-btn" 
-                  onClick={handleLogout} 
+                <button
+                  className="logout-icon-btn"
+                  onClick={handleLogout}
                   title="Log out"
                   aria-label="Log out"
                 >

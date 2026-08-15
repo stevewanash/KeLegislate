@@ -1,5 +1,5 @@
 """
-Financial Impact Agent module for KeLegislate (v1.3 Alignment).
+Financial Impact Agent module for Hustleyetu (v1.3 Alignment).
 Generates pre-computed example scenarios for financial bills and compliance checklists
 for regulatory bills targeting the Boda Boda transport industry.
 """
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 IMPACT_SYSTEM_INSTRUCTION = """
-You are the Financial Impact & Compliance Analyst Agent for KeLegislate.
+You are the Financial Impact & Compliance Analyst Agent for Hustleyetu.
 Your job is to analyze a legislative bill and generate a pre-computed worked example scenario or compliance checklist guide specifically tailored to the Boda Boda transport sector in Kenya.
 
 CRITICAL CONSTRAINTS:

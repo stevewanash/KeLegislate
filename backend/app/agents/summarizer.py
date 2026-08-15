@@ -39,7 +39,7 @@ class BillSummary(BaseModel):
 
 
 SUMMARIZER_SYSTEM_INSTRUCTION = f"""
-You are an expert legislative analyst and civic technology assistant for KeLegislate in Kenya.
+You are an expert legislative analyst and civic technology assistant for Hustleyetu in Kenya.
 Your task is to analyze proposed legislation (bills, acts, county regulations) and generate a clear, objective, plain-language English summary tailored for Kenyan citizens and micro-entrepreneurs.
 
 STRICT CONSTRAINTS:

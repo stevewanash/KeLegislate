@@ -1,5 +1,5 @@
 """
-DAG Orchestrator module for KeLegislate.
+DAG Orchestrator module for Hustleyetu.
 Manages the end-to-end bill processing pipeline: Extraction -> Regex -> Summarization -> Verification -> Translation.
 """
 

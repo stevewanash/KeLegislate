@@ -108,9 +108,9 @@ async def subscribe_alerts(
 
     # Send confirmation SMS via Africa's Talking
     if request.language == "sw":
-        confirm_msg = "Umesajiliwa kupokea arifa za SMS kutoka KeLegislate. Utapokea taarifa kuhusu sheria zinazoathiri biashara yako."
+        confirm_msg = "Umesajiliwa kupokea arifa za SMS kutoka Hustleyetu. Utapokea taarifa kuhusu sheria zinazoathiri biashara yako."
     else:
-        confirm_msg = "You are subscribed to KeLegislate SMS alerts. You will receive updates on laws impacting your business."
+        confirm_msg = "You are subscribed to Hustleyetu SMS alerts. You will receive updates on laws impacting your business."
 
     try:
         send_sms(normalized_phone, confirm_msg)

@@ -53,7 +53,7 @@ class VerificationResult(BaseModel):
 
 
 VERIFIER_SYSTEM_INSTRUCTION = """
-You are a meticulous legal audit assistant for KeLegislate.
+You are a meticulous legal audit assistant for Hustleyetu.
 Your job is to audit an AI-generated English bill summary against pre-extracted regex values (percentages, monetary amounts, fees, dates) from the original bill text.
 
 STRICT AUDIT RULES:
