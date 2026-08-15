@@ -1,4 +1,9 @@
 import logging
+import json
+import base64
+import hashlib
+import hmac
+import time
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Request
 from fastapi.responses import JSONResponse
@@ -24,6 +29,52 @@ AT_STATUS_MAP = {
     "rejected": "failed",
     "expired": "failed",
 }
+
+
+def _verify_standardwebhook(raw_body: bytes, headers, secret: str, tolerance_seconds: int = 300) -> bool:
+    """
+    Verify a standardwebhooks signature (used by Supabase Auth Hooks).
+    See: https://github.com/standard-webhooks/standard-webhooks/blob/main/spec/standard-webhooks.md
+    """
+    try:
+        # Extract the base64 secret (remove v1,whsec_ prefix)
+        clean_secret = secret
+        if clean_secret.startswith("v1,whsec_"):
+            clean_secret = clean_secret[len("v1,whsec_"):]
+        secret_bytes = base64.b64decode(clean_secret)
+
+        msg_id = headers.get("webhook-id", "")
+        msg_timestamp = headers.get("webhook-timestamp", "")
+        msg_signatures = headers.get("webhook-signature", "")
+
+        if not msg_id or not msg_timestamp or not msg_signatures:
+            return False
+
+        # Check timestamp tolerance (prevent replay attacks)
+        ts = int(msg_timestamp)
+        if abs(time.time() - ts) > tolerance_seconds:
+            logger.warning(f"Webhook timestamp outside tolerance: {ts} vs {time.time()}")
+            return False
+
+        # Compute expected HMAC-SHA256 signature: sign("{msg_id}.{timestamp}.{body}")
+        body_str = raw_body.decode("utf-8")
+        to_sign = f"{msg_id}.{msg_timestamp}.{body_str}"
+        expected_sig = base64.b64encode(
+            hmac.new(secret_bytes, to_sign.encode("utf-8"), hashlib.sha256).digest()
+        ).decode("utf-8")
+
+        # Verify against provided signatures (space-separated, each prefixed with "v1,")
+        for sig_entry in msg_signatures.split(" "):
+            parts = sig_entry.split(",", 1)
+            if len(parts) == 2 and parts[0] == "v1":
+                if hmac.compare_digest(expected_sig, parts[1]):
+                    return True
+
+        logger.warning("Standardwebhook signature mismatch")
+        return False
+    except Exception as e:
+        logger.error(f"Error verifying standardwebhook signature: {e}")
+        return False
 
 
 @router.post("/at-delivery")
@@ -128,92 +179,47 @@ async def incoming_sms_webhook(payload: dict):
     return {"status": "success", "detail": "Incoming SMS received successfully"}
 
 
-def verify_supabase_webhook_signature(
-    raw_body: bytes,
-    headers: dict,
-    expected_secret: str
-) -> bool:
-    """
-    Verifies Supabase Auth Webhook using either:
-    1. Direct 'x-supabase-webhook-secret' header matching expected_secret.
-    2. Direct 'Authorization: Bearer <secret>' matching expected_secret.
-    3. Standard Webhooks (Svix) HMAC-SHA256 signature verification for secrets starting with 'v1,whsec_' or 'whsec_'.
-    """
-    if not expected_secret or expected_secret == "mock-secret":
-        return True
-
-    # 1. Direct custom header check
-    x_secret = headers.get("x-supabase-webhook-secret")
-    if x_secret and x_secret == expected_secret:
-        return True
-
-    # 2. Authorization header check
-    auth_header = headers.get("authorization", "")
-    if auth_header:
-        token = auth_header.replace("Bearer ", "").strip()
-        if token == expected_secret:
-            return True
-
-    # 3. Standard Webhook (Svix) signature verification
-    sig_header = headers.get("webhook-signature") or headers.get("x-supabase-signature")
-    msg_id = headers.get("webhook-id") or headers.get("x-supabase-webhook-id")
-    msg_timestamp = headers.get("webhook-timestamp") or headers.get("x-supabase-webhook-timestamp")
-
-    if sig_header and msg_id and msg_timestamp:
-        import hmac
-        import hashlib
-        import base64
-        try:
-            clean_secret = expected_secret.replace("v1,whsec_", "").replace("whsec_", "")
-            secret_bytes = base64.b64decode(clean_secret)
-            to_sign = f"{msg_id}.{msg_timestamp}.".encode("utf-8") + raw_body
-            expected_sig = base64.b64encode(
-                hmac.new(secret_bytes, to_sign, hashlib.sha256).digest()
-            ).decode("utf-8")
-
-            # Signatures can be a list: "v1,sig1 v1,sig2"
-            passed_sigs = [s.replace("v1,", "").strip() for s in sig_header.split(" ") if s]
-            if any(hmac.compare_digest(expected_sig, s) for s in passed_sigs):
-                return True
-        except Exception as e:
-            logger.warning(f"Error validating Svix webhook signature: {e}")
-
-    return False
-
-
 @router.post("/auth/send-sms")
-async def supabase_auth_send_sms(
-    request: Request,
-    payload: SupabaseSmsWebhookPayload = None
-):
+async def supabase_auth_send_sms(request: Request):
     """
     Custom SMS OTP gateway webhook invoked by Supabase Auth.
-    Verifies either standard webhook HMAC signature, Authorization bearer token,
-    or x-supabase-webhook-secret header against settings.SUPABASE_SMS_WEBHOOK_SECRET.
+    Supports both:
+      1. Standardwebhooks signature verification (new Supabase Auth Hooks system)
+      2. Simple header-based verification (legacy custom SMS webhook)
     Returns HTTP 200 with empty JSON `{}` per Supabase custom SMS provider specification.
     """
+    raw_body = await request.body()
     expected_secret = getattr(settings, "SUPABASE_SMS_WEBHOOK_SECRET", "")
     testing = getattr(settings, "TESTING", False)
 
-    raw_body = await request.body()
-    headers_dict = {k.lower(): v for k, v in request.headers.items()}
-    logger.info(f"Supabase Auth SMS Webhook invoked. Headers: {list(headers_dict.keys())}")
+    # --- Authentication ---
+    webhook_id = request.headers.get("webhook-id")
+    webhook_timestamp = request.headers.get("webhook-timestamp")
+    webhook_signature = request.headers.get("webhook-signature")
+    legacy_header = request.headers.get("x-supabase-webhook-secret")
 
-    if not testing and expected_secret and expected_secret != "mock-secret":
-        is_valid = verify_supabase_webhook_signature(raw_body, headers_dict, expected_secret)
-        if not is_valid:
-            logger.warning("Supabase Auth SMS webhook secret mismatch or missing header/signature")
-            raise HTTPException(status_code=401, detail="Invalid or missing webhook secret header or signature")
+    if not testing:
+        if webhook_id and webhook_timestamp and webhook_signature:
+            # New Auth Hooks system: verify standardwebhooks HMAC-SHA256 signature
+            if not _verify_standardwebhook(raw_body, request.headers, expected_secret):
+                logger.warning("Standardwebhooks signature verification failed for auth/send-sms")
+                raise HTTPException(status_code=401, detail="Invalid webhook signature")
+            logger.info("Standardwebhooks signature verified successfully")
+        elif expected_secret and expected_secret != "mock-secret":
+            # Legacy custom SMS webhook: verify simple header
+            if not legacy_header or legacy_header != expected_secret:
+                logger.warning("Supabase Auth SMS webhook secret mismatch or missing header")
+                raise HTTPException(status_code=401, detail="Invalid or missing webhook secret header")
+            logger.info("Legacy webhook header verified successfully")
 
-    # Parse payload if not automatically injected
-    if payload is None:
-        import json
-        try:
-            body_json = json.loads(raw_body.decode("utf-8")) if raw_body else {}
-            payload = SupabaseSmsWebhookPayload(**body_json)
-        except Exception as e:
-            logger.error(f"Failed parsing Supabase SMS webhook payload: {e}")
-            raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    # --- Parse payload ---
+    try:
+        payload_dict = json.loads(raw_body)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        logger.error(f"Failed to parse SMS webhook payload: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    payload = SupabaseSmsWebhookPayload(**payload_dict)
 
     phone_raw = payload.get_recipient_phone()
     message_text = payload.get_message_text()
