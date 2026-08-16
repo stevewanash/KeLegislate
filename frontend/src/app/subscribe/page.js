@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import TrustStrip from '../../components/TrustStrip';
 import { api } from '../../lib/api';
 import { formatE164, isValidKenyanPhone } from '../../lib/phone';
 
@@ -94,68 +95,73 @@ export default function SubscribePage() {
   };
 
   return (
-    <div className="container animate-fade-in">
-      <div className="page-header" style={{ marginBottom: '2rem', textAlign: 'center' }}>
+    <div className="animate-fade-in">
+      <div className="page-header" style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
         <h1 className="page-title">Subscribe to Legislative Alerts</h1>
-        <p className="page-subtitle">
-          Receive direct SMS alerts for transport sector bills and regulations as they move through Parliament.
+        <p className="page-subtitle" style={{ margin: '0 auto' }}>
+          Receive timely SMS alerts for transport sector bills and regulations when they are tabled in Parliament.
         </p>
       </div>
 
+      {/* Trust Strip */}
+      <TrustStrip />
+
       {/* Subscription Signup Card */}
-      <div className="content-card" style={{ marginBottom: '2.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+      <div className="content-card" style={{ marginBottom: '2.5rem', padding: '2rem 2.25rem' }}>
+        <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>
           New SMS Alert Subscription
         </h2>
 
         {subscribeSuccess ? (
-          <div style={{ padding: '1.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', textAlign: 'center' }}>
-            <h3 style={{ color: '#166534', fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              Successfully Subscribed!
+          <div style={{ padding: '2rem', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+            <h3 style={{ color: 'var(--success)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              Successfully Subscribed
             </h3>
-            <p style={{ color: '#15803d', fontSize: '0.9rem', marginBottom: '1rem' }}>
-              Your phone number ({formatE164(phone)}) has been registered for transport legislative alerts.
+            <p style={{ color: 'var(--text-primary)', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
+              Your phone number (<strong className="tabular-nums">{formatE164(phone)}</strong>) has been registered for legislative alerts.
             </p>
-            <p style={{ color: '#166534', fontSize: '0.825rem' }}>
-              A confirmation SMS will be sent shortly to your mobile number via Africa's Talking.
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+              A confirmation SMS will be sent shortly to your mobile number.
             </p>
             <button
               type="button"
               className="btn-text"
               onClick={() => { setSubscribeSuccess(false); setPhone(''); }}
-              style={{ marginTop: '1rem' }}
             >
-              Subscribe another number
+              Subscribe another phone number &rarr;
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubscribe}>
             {subscribeError && (
-              <div style={{ padding: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
+              <div style={{ padding: '0.85rem 1rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
                 {subscribeError}
               </div>
             )}
 
             {/* Phone input */}
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label">Kenyan Mobile Number</label>
+            <div className="form-group">
+              <label htmlFor="subscribe-phone" className="form-label">
+                Kenyan Mobile Number
+              </label>
               <input
+                id="subscribe-phone"
                 type="tel"
-                className="form-input"
+                className="form-input tabular-nums"
                 placeholder="e.g. 0712345678 or +254712345678"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
                 disabled={submitting}
               />
-              <p className="form-hint">E.164 format (+254XXXXXXXXX). Protected under Kenya Data Protection Act.</p>
+              <p className="form-hint">Strictly protected under Kenya Data Protection Act.</p>
             </div>
 
             {/* Language Selection */}
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <div className="form-group">
               <label className="form-label">Preferred Alert Language</label>
-              <div style={{ display: 'flex', gap: '2rem', marginTop: '0.35rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+              <div style={{ display: 'flex', gap: '2rem', marginTop: '0.4rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.925rem' }}>
                   <input
                     type="radio"
                     name="language"
@@ -165,7 +171,7 @@ export default function SubscribePage() {
                   />
                   <span>English</span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.925rem' }}>
                   <input
                     type="radio"
                     name="language"
@@ -178,65 +184,66 @@ export default function SubscribePage() {
               </div>
             </div>
 
-            {/* Alert Channel */}
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label">Alert Channel</label>
-              <div style={{ display: 'flex', gap: '2rem', marginTop: '0.35rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'default', fontSize: '0.9rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={true}
-                    readOnly
-                  />
-                  <span>SMS Alerts (Africa's Talking)</span>
-                </label>
-              </div>
+            {/* Delivery Channel Line */}
+            <div style={{ background: 'var(--bg-card-subtle)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '1.25rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              <strong>Delivery Channel:</strong> Direct SMS alerts.
             </div>
 
             {/* Consent Checkbox */}
-            <div className="form-group" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', marginBottom: '1.5rem' }}>
+            <div className="form-group" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', marginBottom: '1.5rem' }}>
               <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={consent}
                   onChange={() => setConsent(!consent)}
                   required
-                  style={{ marginTop: '0.15rem', cursor: 'pointer' }}
+                  style={{ marginTop: '0.2rem', cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
-                  I consent to hustleyetu processing my phone number to deliver legislative alerts in compliance with the Kenya Data Protection Act (KDPA) 2019.
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                  I consent to HustleYetu processing my mobile number to deliver legislative alerts in full compliance with the <strong>Kenya Data Protection Act (KDPA) 2019</strong>.
                 </span>
               </label>
             </div>
 
             <button
               type="submit"
-              className="btn-primary-purple"
+              className="btn-primary-accent"
               disabled={submitting}
+              style={{ width: '100%' }}
             >
-              {submitting ? "Signing Up..." : "Confirm Subscription"}
+              {submitting ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                    <path d="M12 2a10 10 0 0 1 10 10" />
+                  </svg>
+                  Registering Number...
+                </span>
+              ) : (
+                "Confirm SMS Subscription"
+              )}
             </button>
           </form>
         )}
       </div>
 
       {/* Manage Existing Subscription Card */}
-      <div className="content-card" style={{ marginBottom: '3rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-          Manage Subscription
+      <div className="content-card" style={{ marginBottom: '3rem', padding: '2rem 2.25rem' }}>
+        <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+          Manage Existing Subscription
         </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-          Check your active status or unsubscribe from SMS alerts at any time.
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+          Check your subscription status, change language preference, or unsubscribe from SMS alerts at any time.
         </p>
 
         {manageError && (
-          <div style={{ padding: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
+          <div style={{ padding: '0.85rem 1rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.875rem' }}>
             {manageError}
           </div>
         )}
 
         {unsubscribeSuccess && (
-          <div style={{ padding: '1rem', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
+          <div style={{ padding: '1rem 1.25rem', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 600 }}>
             Subscription successfully deactivated. You will no longer receive SMS alerts.
           </div>
         )}
@@ -245,35 +252,45 @@ export default function SubscribePage() {
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <input
               type="tel"
-              className="form-input"
+              className="form-input tabular-nums"
               placeholder="e.g. 0712345678"
               value={managePhone}
               onChange={(e) => setManagePhone(e.target.value)}
               required
-              style={{ flex: 1, minWidth: '200px' }}
+              style={{ flex: 1, minWidth: '220px' }}
             />
             <button
               type="submit"
-              className="stance-btn"
+              className="btn-secondary-outline"
               disabled={checkingStatus}
             >
-              {checkingStatus ? "Checking..." : "Check Status"}
+              {checkingStatus ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                    <path d="M12 2a10 10 0 0 1 10 10" />
+                  </svg>
+                  Checking...
+                </span>
+              ) : (
+                "Check Status"
+              )}
             </button>
           </div>
         </form>
 
         {statusResult && (
-          <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Subscription Status:</span>
-              <span className="badge-neutral" style={{ color: statusResult.is_active ? '#15803d' : '#991b1b', fontWeight: 700 }}>
+          <div style={{ background: 'var(--bg-card-subtle)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginTop: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subscription Status:</span>
+              <span className={statusResult.is_active ? 'chip-risk-low' : 'chip-risk-high'}>
                 {statusResult.is_active ? 'Active' : 'Inactive / Unsubscribed'}
               </span>
             </div>
-            <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
               Preferred Language: <strong>{statusResult.preferred_language?.toUpperCase() || 'EN'}</strong>
             </div>
-            <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
               Channels: <strong>{statusResult.channels?.join(', ') || 'SMS'}</strong>
             </div>
 
@@ -284,16 +301,16 @@ export default function SubscribePage() {
                 disabled={unsubscribing}
                 style={{
                   background: 'transparent',
-                  border: '1px solid #ef4444',
-                  color: '#ef4444',
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: '6px',
-                  fontSize: '0.825rem',
+                  border: '1px solid var(--danger)',
+                  color: 'var(--danger)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.85rem',
                   fontWeight: 600,
                   cursor: 'pointer'
                 }}
               >
-                {unsubscribing ? "Unsubscribing..." : "Unsubscribe from Alerts"}
+                {unsubscribing ? "Unsubscribing..." : "Unsubscribe from SMS Alerts"}
               </button>
             )}
           </div>

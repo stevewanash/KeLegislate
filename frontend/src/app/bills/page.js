@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import { api } from '../../lib/api';
 import { truncateWords } from '../../lib/excerpt';
 
@@ -23,6 +24,7 @@ const DEFAULT_DEMO_BILLS = [
 
 export default function BillsPage() {
   const [bills, setBills] = useState([]);
+  const [filterType, setFilterType] = useState('ALL');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,14 +48,18 @@ export default function BillsPage() {
     loadBills();
   }, []);
 
+  const filteredBills = bills.filter((bill) => {
+    if (filterType === 'ALL') return true;
+    return bill.bill_type?.toLowerCase() === filterType.toLowerCase();
+  });
+
   const getBillTypeTag = (type) => {
-    switch (type) {
-      case 'regulatory':
-        return <span className="badge-neutral">Regulatory</span>;
-      case 'financial':
-      default:
-        return <span className="badge-neutral">Financial</span>;
-    }
+    const isFin = (type || 'financial').toLowerCase() === 'financial';
+    return isFin ? (
+      <span className="badge-financial">Financial</span>
+    ) : (
+      <span className="badge-regulatory">Regulatory</span>
+    );
   };
 
   const getBillTeaser = (bill) => {
@@ -62,40 +68,61 @@ export default function BillsPage() {
         ? "The Finance Bill, 2024 proposes significant taxation and fiscal adjustments aimed at revenue mobilization for transport operators."
         : "These county regulations mandate annual county operating permits for commercial motorcycle operators in Nairobi."
     );
-    return truncateWords(text, 16);
+    return truncateWords(text, 18);
   };
 
   return (
-    <div className="container animate-fade-in">
+    <div className="animate-fade-in">
       {/* Page Header */}
       <div className="page-header" style={{ marginBottom: '2rem' }}>
         <h1 className="page-title">Browse Legislative Bills</h1>
         <p className="page-subtitle">
-          Active transport sector bills and regulations currently moving through Parliament and Nairobi County Assembly.
+          Bodaboda sector legislation, finance acts, and regulation bills moving through Parliament and County Assemblies.
         </p>
       </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '4rem 0',
-          gap: '1rem'
-        }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading legislative bills...</p>
+      {/* F8: Filter Bar matching impact page */}
+      <div className="content-card" style={{ marginBottom: '1.75rem', padding: '1rem 1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <label htmlFor="bill-filter-select" className="form-label" style={{ marginBottom: 0, fontWeight: 700 }}>Filter by Type:</label>
+            <select
+              id="bill-filter-select"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="form-input"
+              style={{
+                width: 'auto',
+                padding: '0.45rem 1rem',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ALL">All Legislation</option>
+              <option value="financial">Financial</option>
+              <option value="regulatory">Regulatory</option>
+            </select>
+          </div>
+
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+            Showing <strong>{filteredBills.length}</strong> of {bills.length} bills
+          </div>
         </div>
+      </div>
+
+      {/* F10: Loading State with Spinner */}
+      {loading && (
+        <LoadingSpinner message="Loading legislative bills..." />
       )}
 
       {/* Bill Cards List */}
       {!loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '3rem' }}>
-          {bills.map((bill) => (
-            <div key={bill.id} className="content-card">
+          {filteredBills.map((bill) => (
+            <div key={bill.id} className="content-card content-card-interactive">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                <h2 className="card-title" style={{ flex: '1', minWidth: '240px', fontSize: '1.25rem', lineHeight: '1.3' }}>
+                <h2 className="card-title" style={{ flex: '1', minWidth: '240px', fontSize: '1.3rem', lineHeight: '1.35' }}>
                   <a href={`/bills/${bill.id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>
                     {bill.title}
                   </a>
@@ -105,27 +132,33 @@ export default function BillsPage() {
                 </div>
               </div>
 
-              <p className="card-description" style={{ marginBottom: '1rem' }}>
+              <p className="card-description" style={{ marginBottom: '1.25rem' }}>
                 {getBillTeaser(bill)}
               </p>
 
               <div style={{
                 display: 'flex',
-                justify: 'flex-end',
+                justifyContent: 'flex-end',
                 alignItems: 'center',
-                paddingTop: '0.75rem',
+                paddingTop: '0.85rem',
                 borderTop: '1px solid var(--border-color)'
               }}>
                 <a
                   href={`/bills/${bill.id}`}
                   className="card-link"
-                  style={{ fontSize: '0.9rem', fontWeight: 600 }}
+                  style={{ fontSize: '0.925rem', fontWeight: 600 }}
                 >
-                  Read Full Bill Summary
+                  Read Full Bill Summary &rarr;
                 </a>
               </div>
             </div>
           ))}
+
+          {filteredBills.length === 0 && (
+            <div className="content-card" style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+              No legislation found matching the selected filter.
+            </div>
+          )}
         </div>
       )}
     </div>

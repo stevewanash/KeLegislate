@@ -28,8 +28,8 @@ export default function Header() {
     { href: '/', label: 'Home', exact: true },
     { href: '/bills', label: 'Browse Bills', exact: false },
     { href: '/impact', label: 'Impact', exact: false },
-    { href: '/subscribe', label: 'Subscribe', exact: true },
-    { href: '/dashboard', label: 'Dashboard', exact: true },
+    { href: '/subscribe', label: 'SMS Alerts', exact: true },
+    { href: '/dashboard', label: 'Insights Dashboard', exact: true },
   ];
 
   const isLinkActive = (link) => {
@@ -43,19 +43,21 @@ export default function Header() {
     <>
       <header className="app-header">
         <div className="container app-header-inner">
-          <a href="/" className="brand-logo" style={{ textDecoration: 'none' }}>
-            <span style={{ fontFamily: 'var(--font-title)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-              HustleYeTu
-            </span>
+          <a href="/" className="brand-logo" aria-label="HustleYetu Home">
+            <div className="brand-mark">
+              H
+            </div>
+            <span>HustleYetu</span>
           </a>
 
           {/* Desktop Horizontal Navigation */}
-          <nav className="nav-menu">
+          <nav className="nav-menu" aria-label="Main Navigation">
             {navLinks.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
                 className={`nav-link ${isLinkActive(link) ? 'active' : ''}`}
+                aria-current={isLinkActive(link) ? 'page' : undefined}
               >
                 {link.label}
               </a>
@@ -100,12 +102,17 @@ export default function Header() {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Navigation Menu"
+            aria-label="Mobile Navigation Menu"
           >
             <div className="nav-drawer-header">
-              <span style={{ fontFamily: 'var(--font-title)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-                HustleYeTu
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div className="brand-mark" style={{ width: '28px', height: '28px', fontSize: '0.95rem' }}>
+                  H
+                </div>
+                <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                  HustleYetu
+                </span>
+              </div>
               <button
                 type="button"
                 className="nav-drawer-close"
@@ -116,13 +123,14 @@ export default function Header() {
               </button>
             </div>
 
-            <nav className="nav-drawer-links">
+            <nav className="nav-drawer-links" aria-label="Mobile Drawer Links">
               {navLinks.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
                   className={`nav-drawer-link ${isLinkActive(link) ? 'active' : ''}`}
                   onClick={() => setDrawerOpen(false)}
+                  aria-current={isLinkActive(link) ? 'page' : undefined}
                 >
                   {link.label}
                 </a>

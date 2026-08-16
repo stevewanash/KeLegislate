@@ -1,9 +1,10 @@
 import '../styles/globals.css';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 export const metadata = {
-  title: 'Hustle Yetu — Civic Action & Impact Analysis Platform',
-  description: 'Proactive alerts, financial impact modeling, and regulatory compliance guidance on Kenyan bills.',
+  title: 'HustleYetu — Civic Literacy & Policy Impact Platform',
+  description: 'Proactive alerts, financial impact modeling, and regulatory compliance guidance on Kenyan transport and finance bills.',
 };
 
 export default function RootLayout({ children }) {
@@ -18,14 +19,16 @@ export default function RootLayout({ children }) {
           <Header />
 
           {/* Main Content Area */}
-          <main style={{ flex: '1 0 auto', padding: '1.25rem 0' }}>
+          <main style={{ flex: '1 0 auto', padding: '1.5rem 0 3rem 0' }}>
             <div className="container">
               {children}
             </div>
           </main>
+
+          {/* Global Footer */}
+          <Footer />
         </div>
       </body>
     </html>
   );
 }
-

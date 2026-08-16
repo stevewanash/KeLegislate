@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import AuthModal from '../../../components/AuthModal';
+import FeedbackSection from '../../../components/FeedbackSection';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 import { api } from '../../../lib/api';
-import { supabase } from '../../../lib/supabase';
 
 export default function ImpactDetailPage() {
   const params = useParams();
@@ -18,16 +18,6 @@ export default function ImpactDetailPage() {
   // Client-side calculator state
   const [customValue, setCustomValue] = useState(150000);
   const [calcResult, setCalcResult] = useState(null);
-
-  // Feedback Form state
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [support, setSupport] = useState('support');
-  const [rating, setRating] = useState(5);
-  const [concerns, setConcerns] = useState('');
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
-  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
-  const [feedbackInfo, setFeedbackInfo] = useState('');
-  const [feedbackError, setFeedbackError] = useState(null);
 
   useEffect(() => {
     if (!billId) return;
@@ -57,7 +47,7 @@ export default function ImpactDetailPage() {
     loadData();
   }, [billId]);
 
-  // Client-side deterministic formula evaluation
+  // Deterministic calculator formula evaluation
   useEffect(() => {
     if (!impactData || impactData.bill_type === 'regulatory') return;
 
@@ -85,140 +75,88 @@ export default function ImpactDetailPage() {
     });
   }, [customValue, impactData]);
 
-  const handleFeedbackSubmit = async (e) => {
-    e.preventDefault();
-    setFeedbackError(null);
-    setFeedbackInfo('');
-
-    const sessionRes = await supabase.auth.getSession();
-    const currentSession = sessionRes?.data?.session;
-
-    if (!currentSession) {
-      setAuthModalOpen(true);
-      return;
-    }
-
-    try {
-      setSubmittingFeedback(true);
-      const token = currentSession.access_token;
-      await api.submitFeedback(billId, support, rating, concerns, token);
-      setFeedbackSuccess(true);
-      await supabase.auth.signOut().catch(() => {});
-    } catch (err) {
-      console.error('Feedback error:', err);
-      if (err.message && (err.message.includes('already submitted') || err.message.includes('409'))) {
-        setFeedbackInfo("You've already submitted feedback for this bill.");
-      } else {
-        setFeedbackError(err.message || 'Failed to submit feedback');
-      }
-      await supabase.auth.signOut().catch(() => {});
-    } finally {
-      setSubmittingFeedback(false);
-    }
-  };
-
-  const onAuthSuccess = async (session) => {
-    if (session?.access_token) {
-      try {
-        setSubmittingFeedback(true);
-        setFeedbackError(null);
-        setFeedbackInfo('');
-        await api.submitFeedback(billId, support, rating, concerns, session.access_token);
-        setFeedbackSuccess(true);
-        await supabase.auth.signOut().catch(() => {});
-      } catch (err) {
-        if (err.message && (err.message.includes('already submitted') || err.message.includes('409'))) {
-          setFeedbackInfo("You've already submitted feedback for this bill.");
-        } else {
-          setFeedbackError(err.message || 'Failed to submit feedback');
-        }
-        await supabase.auth.signOut().catch(() => {});
-      } finally {
-        setSubmittingFeedback(false);
-      }
-    }
-  };
-
   const isFinancial = impactData?.bill_type !== 'regulatory';
 
+  const getRiskChip = (riskLevel) => {
+    const level = (riskLevel || 'MEDIUM').toUpperCase();
+    if (level === 'HIGH') {
+      return <span className="chip-risk-high">High Risk</span>;
+    }
+    if (level === 'LOW') {
+      return <span className="chip-risk-low">Low Risk</span>;
+    }
+    return <span className="chip-risk-medium">Medium Risk</span>;
+  };
+
   return (
-    <div className="container animate-fade-in">
+    <div className="animate-fade-in">
       {/* Back Link */}
-      <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
-        <a href="/impact" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>
-          &larr; Back to Legislative Impact Center
+      <div style={{ marginTop: '0.5rem', marginBottom: '1.25rem' }}>
+        <a href="/impact" className="back-link">
+          ← Back to Legislative Impact Center
         </a>
       </div>
 
+      {/* Loading Spinner */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--text-muted)' }}>
-          <p>Loading pre-generated impact scenario...</p>
-        </div>
+        <LoadingSpinner message="Loading worked impact scenario..." />
       )}
 
       {error && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '1rem 1.25rem', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'center' }}>
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', padding: '1.25rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', textAlign: 'center' }}>
           {error}
         </div>
       )}
 
       {!loading && impactData && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '3rem' }}>
-          {/* Bill Metadata Header Card */}
-          <div className="content-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-              <h1 style={{ fontSize: '1.85rem', fontWeight: 700, flex: '1', minWidth: '260px', color: 'var(--text-primary)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '3rem' }}>
+          {/* Main Continuous Narrative Surface */}
+          <article className="article-surface">
+            {/* Header: Title, Risk Chip, Type Badge */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <h1 style={{ fontFamily: 'var(--font-title)', fontSize: '1.85rem', fontWeight: 700, flex: '1', minWidth: '240px', color: 'var(--text-primary)', lineHeight: 1.25 }}>
                 {impactData.bill_title || billDetail?.title || 'Legislative Document'}
               </h1>
-              <span className="badge-neutral" style={{ textTransform: 'capitalize' }}>
-                {isFinancial ? 'Financial' : 'Regulatory'}
-              </span>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {getRiskChip(impactData.risk_level)}
+                <span className={isFinancial ? 'badge-financial' : 'badge-regulatory'}>
+                  {isFinancial ? 'Financial' : 'Regulatory'}
+                </span>
+              </div>
             </div>
 
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-              Risk Level: <strong>{impactData.risk_level || 'MEDIUM'}</strong>
-            </p>
-
-            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.65', marginBottom: '1.5rem' }}>
+            {/* Concise Summary */}
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1.025rem', lineHeight: '1.7', marginBottom: '1.75rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', width: '100%' }}>
               {impactData.concise_summary || billDetail?.ai_summary_en}
             </p>
 
-            {(impactData.pdf_url || billDetail?.source_url) && (
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                <a
-                  href={impactData.pdf_url || billDetail?.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}
-                >
-                  View Original Official Bill Document (PDF)
-                </a>
-              </div>
-            )}
-          </div>
+            {/* FINANCIAL SECTION FLOW: Scenario -> Policy Figures -> Math -> Calculator */}
+            {isFinancial && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2.25rem' }}>
+                {/* 1. Worked Example Narrative */}
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+                    1. Representative Operator Scenario
+                  </h3>
+                  <div className="callout-box">
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '0.35rem' }}>
+                      Persona
+                    </span>
+                    <p style={{ color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: 1.6 }}>
+                      {impactData.scenario_persona?.description || 'A boda boda rider operating a 150cc motorcycle valued at KES 150,000 for daily commercial transport services.'}
+                    </p>
+                  </div>
+                </div>
 
-          {/* FINANCIAL BILL: Worked Example Scenario + Client-Side Calculator */}
-          {isFinancial && (
-            <>
-              {/* Worked Example Scenario Card */}
-              <div className="content-card">
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>
-                  Worked Example Scenario
-                </h3>
-
-                <p style={{ padding: '0.85rem 1rem', background: '#f8fafc', borderLeft: '3px solid var(--primary)', borderRadius: '0 8px 8px 0', color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.25rem' }}>
-                  {impactData.scenario_persona?.description || 'A boda boda rider operating a 150cc motorcycle valued at KES 150,000 for daily commercial transport services.'}
-                </p>
-
-                {/* Key Figures */}
+                {/* 2. Key Policy Figures */}
                 {impactData.key_figures && impactData.key_figures.length > 0 && (
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <h4 style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                      Key Policy Figures
-                    </h4>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+                      2. Statutory Policy Parameters
+                    </h3>
+                    <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
                       {impactData.key_figures.map((fig, idx) => (
-                        <span key={idx} className="badge-neutral" style={{ fontWeight: 600 }}>
+                        <span key={idx} className="badge-neutral" style={{ fontSize: '0.825rem', padding: '0.35rem 0.75rem', fontWeight: 600 }}>
                           {fig}
                         </span>
                       ))}
@@ -226,215 +164,128 @@ export default function ImpactDetailPage() {
                   </div>
                 )}
 
-                {/* Step-by-Step Math Breakdown */}
+                {/* 3. Step-by-Step Math Breakdown */}
                 {impactData.math_breakdown && impactData.math_breakdown.length > 0 && (
                   <div>
-                    <h4 style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                      Math Breakdown
-                    </h4>
-                    <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.4rem', fontFamily: 'monospace', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+                      3. Step-by-Step Financial Math Breakdown
+                    </h3>
+                    <div style={{ background: 'var(--bg-card-subtle)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontFamily: 'monospace', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
                       {impactData.math_breakdown.map((line, idx) => (
                         <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>&bull;</span>
-                          <span>{line}</span>
+                          <span style={{ color: 'var(--primary)', fontWeight: 700 }}>&bull;</span>
+                          <span className="tabular-nums">{line}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Interactive Client-Side Calculator: Header & Text OUTSIDE colored container */}
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                    4. Live Interactive Cost Calculator
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+                    Test custom asset values in your browser to evaluate exact levy formulas before paying.
+                  </p>
+
+                  <div style={{ background: 'var(--bg-card-alt)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+                    {/* Responsive Grid: Stacks on mobile without horizontal clipping */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', alignItems: 'center', width: '100%' }}>
+                      <div className="form-group" style={{ marginBottom: 0, width: '100%' }}>
+                        <label className="form-label" style={{ fontWeight: 700 }}>
+                          Declared Motorcycle / Vehicle Value (KES):
+                        </label>
+                        <input
+                          type="number"
+                          value={customValue}
+                          onChange={(e) => setCustomValue(e.target.value)}
+                          step="10000"
+                          min="10000"
+                          className="form-input tabular-nums"
+                          style={{ fontSize: '1.15rem', fontWeight: 700, width: '100%', boxSizing: 'border-box' }}
+                        />
+                        <span className="form-hint">Standard market valuation range: KES 80,000 – 350,000</span>
+                      </div>
+
+                      <div style={{ background: 'var(--bg-card)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', textAlign: 'center', boxShadow: 'var(--shadow-sm)', width: '100%', boxSizing: 'border-box' }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+                          Estimated Annual Cost Impact
+                        </span>
+                        <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--primary)', margin: '0.35rem 0' }}>
+                          KES {calcResult?.annual ? calcResult.annual.toLocaleString() : 0} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>/ year</span>
+                        </div>
+                        <div className="tabular-nums" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600 }}>
+                          ~ KES {calcResult?.monthly ? calcResult.monthly.toLocaleString() : 0} / month
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* REGULATORY SECTION FLOW: Changes -> Compliance Checklist & Actions */}
+            {!isFinancial && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {/* 1. Regulatory Provisions */}
+                {impactData.regulatory_changes && impactData.regulatory_changes.length > 0 && (
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+                      1. Key Regulatory Provisions & County Mandates
+                    </h3>
+                    <ul style={{ paddingLeft: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.975rem', lineHeight: '1.7' }}>
+                      {impactData.regulatory_changes.map((change, idx) => (
+                        <li key={idx} style={{ marginBottom: '0.4rem' }}>{change}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 2. Action Items Checklist */}
+                {impactData.compliance_checklist && impactData.compliance_checklist.length > 0 && (
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+                      2. Operator Compliance Checklist & Deadlines
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                      {impactData.compliance_checklist.map((item, idx) => (
+                        <div key={idx} style={{ padding: '1rem 1.25rem', background: 'var(--bg-card-subtle)', borderLeft: '3.5px solid var(--primary)', borderRadius: '0 var(--radius-md) var(--radius-md) 0', border: '1px solid var(--border-color)', borderLeftWidth: '3.5px' }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.975rem', marginBottom: '0.35rem' }}>
+                            {item.action}
+                          </div>
+                          <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.825rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                            <span>Deadline: <strong>{item.deadline || 'Statutory Enforcement'}</strong></span>
+                            <span>Legal Reference: <strong>{item.source || 'County Gazette'}</strong></span>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-
-              {/* Client-Side Interactive Calculator */}
-              <div className="content-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    Client-Side Interactive Calculator
-                  </h3>
-                  <span className="badge-neutral" style={{ fontSize: '0.75rem' }}>
-                    Session-Only
-                  </span>
-                </div>
-
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-                  Calculate custom figures live in your browser (no server calls, no database persistence).
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'center' }}>
-                  <div className="form-group">
-                    <label className="form-label">Input Motorcycle Value (KES):</label>
-                    <input
-                      type="number"
-                      value={customValue}
-                      onChange={(e) => setCustomValue(e.target.value)}
-                      step="10000"
-                      min="10000"
-                      style={{
-                        width: '100%',
-                        background: '#f8fafc',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '8px',
-                        padding: '0.65rem 0.85rem',
-                        color: 'var(--text-primary)',
-                        fontSize: '1rem',
-                        fontWeight: 700,
-                        outline: 'none'
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ background: '#f8fafc', padding: '1rem 1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated Annual Impact</span>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)', margin: '0.2rem 0' }}>
-                      KES {calcResult?.annual ? calcResult.annual.toLocaleString() : 0} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ year</span>
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600 }}>
-                      ~ KES {calcResult?.monthly ? calcResult.monthly.toLocaleString() : 0} / month
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* REGULATORY BILL: Compliance Checklist */}
-          {!isFinancial && (
-            <div className="content-card">
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>
-                Compliance Checklist Guide
-              </h3>
-
-              {impactData.regulatory_changes && impactData.regulatory_changes.length > 0 && (
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <h4 style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                    Key Regulatory Changes
-                  </h4>
-                  <ul style={{ paddingLeft: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                    {impactData.regulatory_changes.map((change, idx) => (
-                      <li key={idx} style={{ marginBottom: '0.35rem' }}>{change}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {impactData.compliance_checklist && impactData.compliance_checklist.length > 0 && (
-                <div>
-                  <h4 style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                    Action Items
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {impactData.compliance_checklist.map((item, idx) => (
-                      <div key={idx} style={{ padding: '0.85rem 1rem', background: '#f8fafc', borderLeft: '3px solid var(--primary)', borderRadius: '0 8px 8px 0' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem', marginBottom: '0.25rem' }}>
-                          {item.action}
-                        </div>
-                        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          <span>Deadline: <strong>{item.deadline || 'N/A'}</strong></span>
-                          <span>Source: <strong>{item.source || 'N/A'}</strong></span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* CITIZEN FEEDBACK FORM */}
-          <div className="content-card">
-            <h3 className="feedback-title" style={{ fontSize: '1.2rem', marginBottom: '0.25rem' }}>
-              Submit Citizen Stance & Feedback
-            </h3>
-            <p className="feedback-subtitle" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-              Your stance is aggregated anonymously to reflect public opinion on this legislation.
-            </p>
-
-            {feedbackSuccess ? (
-              <div style={{ padding: '1.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', textAlign: 'center' }}>
-                <p style={{ color: '#166534', fontWeight: 600, fontSize: '0.95rem' }}>
-                  Thank you! Your feedback has been recorded.
-                </p>
-              </div>
-            ) : feedbackInfo ? (
-              <div style={{ padding: '1.25rem', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '8px', textAlign: 'center' }}>
-                <p style={{ color: '#1e40af', fontWeight: 600, fontSize: '0.95rem' }}>
-                  ℹ️ {feedbackInfo}
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleFeedbackSubmit}>
-                {feedbackError && (
-                  <div style={{ padding: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
-                    {feedbackError}
-                  </div>
-                )}
-
-                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                  <label className="form-label">Do you support this bill?</label>
-                  <div className="stance-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginTop: '0.5rem' }}>
-                    <button
-                      type="button"
-                      className={`stance-btn ${support === 'support' ? 'active' : ''}`}
-                      onClick={() => setSupport('support')}
-                    >
-                      Support
-                    </button>
-                    <button
-                      type="button"
-                      className={`stance-btn ${support === 'oppose' ? 'active' : ''}`}
-                      onClick={() => setSupport('oppose')}
-                    >
-                      Oppose
-                    </button>
-                    <button
-                      type="button"
-                      className={`stance-btn ${support === 'neutral' ? 'active' : ''}`}
-                      onClick={() => setSupport('neutral')}
-                    >
-                      Neutral
-                    </button>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                  <div className="slider-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                    <label className="form-label" style={{ marginBottom: 0 }}>Level of Priority / Rating (1 to 5)</label>
-                    <span className="slider-value" style={{ fontWeight: 700, color: 'var(--primary)' }}>{rating} / 5</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    value={rating}
-                    onChange={(e) => setRating(Number(e.target.value))}
-                    className="range-input"
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                  <label className="form-label">Comments or Concerns</label>
-                  <textarea
-                    className="form-textarea"
-                    placeholder="Share your feedback or specific concerns about this bill..."
-                    value={concerns}
-                    onChange={(e) => setConcerns(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                <button type="submit" className="btn-primary-purple" disabled={submittingFeedback}>
-                  {submittingFeedback ? 'Submitting Feedback...' : 'Submit Feedback'}
-                </button>
-              </form>
             )}
-          </div>
+
+            {/* Official PDF Document Link */}
+            {(impactData.pdf_url || billDetail?.source_url) && (
+              <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '2.25rem', paddingTop: '1.25rem' }}>
+                <a
+                  href={impactData.pdf_url || billDetail?.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  View Official Bill Document (PDF) &rarr;
+                </a>
+              </div>
+            )}
+          </article>
+
+          {/* Shared Collapsible Citizen Feedback Section */}
+          <FeedbackSection billId={billId} />
         </div>
       )}
-
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        onSuccess={onAuthSuccess}
-      />
     </div>
   );
 }

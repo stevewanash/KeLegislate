@@ -85,7 +85,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       setStep('otp');
       setOtpDigits(['', '', '', '', '', '']);
       setResendCountdown(30);
-      setInfoMsg(`OTP code sent via SMS to ${formatted}`);
+      setInfoMsg(`Verification code sent via SMS to ${formatted}`);
     } catch (err) {
       setErrorMsg(err.message || 'Failed to send OTP code. Please try again.');
     } finally {
@@ -96,7 +96,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const handleDigitChange = (index, value) => {
     // Only accept numeric inputs
     const cleanVal = value.replace(/\D/g, '');
-    
+
     if (cleanVal.length > 1) {
       // User pasted into a single digit box
       handlePasteValue(cleanVal);
@@ -162,7 +162,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       resetForm();
       onClose();
     } catch (err) {
-      setErrorMsg(err.message || 'Invalid or expired OTP code. Please check and try again.');
+      setErrorMsg(err.message || 'Invalid or expired verification code. Please check and try again.');
     } finally {
       setLoading(false);
     }
@@ -178,16 +178,16 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
   };
 
   const modalContent = (
-    <div 
-      className="modal-backdrop" 
+    <div
+      className="modal-backdrop"
       onClick={() => { resetForm(); onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
     >
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button 
-          className="modal-close-btn" 
+        <button
+          className="modal-close-btn"
           onClick={() => { resetForm(); onClose(); }}
           aria-label="Close modal"
         >
@@ -197,15 +197,15 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         <div className="auth-modal-header">
           <div className="auth-modal-icon-badge">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
           </div>
-          <h3 id="auth-modal-title" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <h3 id="auth-modal-title" style={{ fontFamily: 'var(--font-title)', fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {step === 'phone' ? 'Verify Your Phone Number' : 'Enter Verification Code'}
           </h3>
           <p className="auth-modal-subtitle">
             {step === 'phone'
-              ? 'Enter your Kenyan mobile number to receive a secure OTP code.'
+              ? 'Enter your Kenyan mobile number to receive a secure SMS verification code.'
               : `Enter the 6-digit code sent via SMS to ${phone}`}
           </p>
         </div>
@@ -225,7 +225,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         {step === 'phone' ? (
           <form onSubmit={handleSendOtp} className="auth-form">
             <div className="form-group">
-              <label htmlFor="phone-input" className="form-label" style={{ fontWeight: 600 }}>
+              <label htmlFor="phone-input" className="form-label">
                 Mobile Phone Number
               </label>
               <input
@@ -239,19 +239,16 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                 disabled={loading}
                 autoFocus
               />
-              <span className="form-hint" style={{ marginTop: '0.5rem', background: '#f8fafc', padding: '0.4rem 0.6rem', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'block' }}>
-                Demo test number: <code>+254111721222</code> (OTP: <code>123456</code>)
-              </span>
             </div>
 
-            <button type="submit" className="btn-primary-purple" disabled={loading}>
+            <button type="submit" className="btn-primary-accent" disabled={loading} style={{ width: '100%' }}>
               {loading ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
                     <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
                     <path d="M12 2a10 10 0 0 1 10 10" />
                   </svg>
-                  Sending OTP...
+                  Sending Code...
                 </span>
               ) : (
                 'Send SMS Verification Code'
@@ -261,10 +258,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         ) : (
           <form onSubmit={handleVerifyOtp} className="auth-form">
             <div className="form-group">
-              <label className="form-label" style={{ textAlign: 'center', display: 'block', fontWeight: 600 }}>
+              <label className="form-label" style={{ textAlign: 'center', display: 'block' }}>
                 6-Digit Verification Code
               </label>
-              
+
               {/* Segmented OTP 6-box input */}
               <div className="otp-segmented-container" onPaste={handlePaste}>
                 {otpDigits.map((digit, idx) => (
@@ -286,7 +283,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               </div>
             </div>
 
-            <button type="submit" className="btn-primary-purple" disabled={loading || otpDigits.join('').length < 6}>
+            <button type="submit" className="btn-primary-accent" disabled={loading || otpDigits.join('').length < 6} style={{ width: '100%' }}>
               {loading ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
@@ -302,8 +299,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
             <div className="auth-modal-footer">
               {resendCountdown > 0 ? (
-                <span className="resend-timer-text">
-                  Resend code in <strong>{resendCountdown}s</strong>
+                <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+                  Resend code in <strong className="tabular-nums">{resendCountdown}s</strong>
                 </span>
               ) : (
                 <button
@@ -316,9 +313,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                 </button>
               )}
 
-              <button 
-                type="button" 
-                className="btn-text" 
+              <button
+                type="button"
+                className="btn-text"
                 onClick={() => setStep('phone')}
                 disabled={loading}
                 style={{ marginTop: '0.25rem' }}
