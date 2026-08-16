@@ -655,20 +655,20 @@ If all 13 steps work, the baseline is complete.
 
 ### Phase 4 Exit Criteria
 
-- [ ] Subscription API creates/updates subscriber records.
-- [ ] Subscription page UI works with phone validation and consent.
-- [ ] Notification service matches subscribers to bills by industry, computes tier-level impacts, and sends SMS.
-- [ ] Delivery receipt webhook updates notification status.
-- [ ] Feedback API requires auth; `UNIQUE(bill_id, user_id)` enforced at database level.
-- [ ] Feedback form on bill summary page, financial impact page, and regulatory impact page gates submission behind login.
-- [ ] Feedback deduplication works across all pages (same `bill_id + user_id` constraint).
-- [ ] Example scenario renders correctly for financial bills on `/impact/[id]`.
-- [ ] Compliance checklist renders correctly for regulatory bills on `/impact/[id]`.
-- [ ] Interactive calculator works on financial impact pages (if implemented as nice-to-have).
-- [ ] Dashboard API returns aggregated feedback stats.
-- [ ] Insights dashboard renders charts and metrics.
-- [ ] End-to-end smoke test passes (all 13 steps).
-- [ ] Merge `phase-4/alerts-feedback` → `develop` → `main`. **Tag: `v0.2.0` (Working Baseline)**.
+- [x] Subscription API creates/updates subscriber records.
+- [x] Subscription page UI works with phone validation and consent.
+- [x] Notification service matches subscribers to bills by industry, computes tier-level impacts, and sends SMS.
+- [x] Delivery receipt webhook updates notification status.
+- [x] Feedback API requires auth; `UNIQUE(bill_id, user_id)` enforced at database level.
+- [x] Feedback form on bill summary page, financial impact page, and regulatory impact page gates submission behind OTP verification.
+- [x] Feedback deduplication works across all pages (same `bill_id + user_id` constraint).
+- [x] Example scenario renders correctly for financial bills on `/impact/[id]`.
+- [x] Compliance checklist renders correctly for regulatory bills on `/impact/[id]`.
+- [x] Interactive calculator works on financial impact pages (if implemented as nice-to-have).
+- [x] Dashboard API returns aggregated feedback stats.
+- [x] Insights dashboard renders charts and metrics.
+- [x] End-to-end smoke test passes (all 13 steps).
+- [x] Merge `phase-4/alerts-feedback` → `develop` → `main`. **Tag: `v0.2.0` (Working Baseline)**.
 
 ---
 

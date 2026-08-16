@@ -33,8 +33,13 @@ frontend/ui_mockups/
 # ============================================
 code_review.md
 sprint.md
+hustle_yetu_pilot_budget.md
+hustle_yetu_script.md
 docs/implementation_log.md
 docs/code_reviews/
+docs/domain-cutover.md
+docs/environment-setup.md
+docs/redesign.md
 docs/vps-setup.md
 
 # ============================================
