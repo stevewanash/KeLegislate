@@ -12,6 +12,8 @@ class BillBrief(BaseModel):
     bill_type: Literal["financial", "regulatory", "hybrid"] = "financial"
     created_at: datetime
     ai_status: str
+    ai_summary_en: Optional[str] = None
+    impact_summary: Optional[str] = None
 
 class BillListResponse(BaseModel):
     bills: List[BillBrief]

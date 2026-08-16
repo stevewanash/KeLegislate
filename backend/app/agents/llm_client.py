@@ -73,15 +73,36 @@ def call_llm(
     else:
         target_model = model or "gemini-2.5-flash"
         logger.debug(f"Routing LLM call to Gemini (model='{target_model}')")
-        return call_gemini(
-            prompt=prompt,
-            system_instruction=system_instruction,
-            model=target_model,
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            response_schema=response_schema,
-            response_mime_type=response_mime_type,
-            tools=tools,
-            max_retries=max_retries,
-            backoff_factor=backoff_factor,
-        )
+        try:
+            return call_gemini(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                model=target_model,
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+                response_schema=response_schema,
+                response_mime_type=response_mime_type,
+                tools=tools,
+                max_retries=max_retries,
+                backoff_factor=backoff_factor,
+            )
+        except Exception as e:
+            deepseek_key = getattr(settings, "DEEPSEEK_API_KEY", "")
+            if deepseek_key:
+                logger.warning(
+                    f"Primary Gemini call failed ({e}); falling back to secondary provider DeepSeek."
+                )
+                ds_model = MODEL_MAPPING.get(target_model, "deepseek-chat")
+                return call_deepseek(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    model=ds_model,
+                    temperature=temperature,
+                    max_output_tokens=max_output_tokens,
+                    response_schema=response_schema,
+                    response_mime_type=response_mime_type,
+                    tools=tools,
+                    max_retries=max_retries,
+                    backoff_factor=backoff_factor,
+                )
+            raise e

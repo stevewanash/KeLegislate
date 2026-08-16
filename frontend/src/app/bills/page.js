@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
+import { truncateWords } from '../../lib/excerpt';
 
 const DEFAULT_DEMO_BILLS = [
   {
@@ -9,14 +10,14 @@ const DEFAULT_DEMO_BILLS = [
     title: "The Finance Bill, 2024",
     bill_type: "financial",
     created_at: "2026-08-01T00:00:00Z",
-    excerpt: "Introduces motor vehicle circulation taxes, fuel levies, and withholding tax adjustments impacting transport operators and micro-enterprises."
+    ai_summary_en: "The Finance Bill, 2024 proposes significant taxation and fiscal adjustments aimed at revenue mobilization. For transport and mobility operators, key proposals include introducing an annual motor vehicle circulation tax calculated at 2.5% of the vehicle's declared value (with a minimum statutory cap of KES 5,000), revisions to fuel levy tariffs, and adjusted withholding tax thresholds for micro-enterprises."
   },
   {
     id: "nairobi-bodaboda-regulations-2025",
     title: "Nairobi Motorcycle Taxi (Boda Boda) Permit Regulations 2025",
     bill_type: "regulatory",
     created_at: "2026-08-05T00:00:00Z",
-    excerpt: "Establishes mandatory annual county operating permits, designated SACCO registration requirements, helmet safety standards, and enforcement penalties."
+    ai_summary_en: "These county regulations mandate annual county operating permits for all commercial motorcycle taxi operators in Nairobi County. They enforce designated SACCO registration, biometric rider badge identification, two standard reflective helmets, and designated CBD pick-and-drop zones."
   }
 ];
 
@@ -30,18 +31,7 @@ export default function BillsPage() {
       try {
         const response = await api.getBills(1, 20);
         if (response && response.bills && response.bills.length > 0) {
-          const formattedBills = response.bills.map((b) => ({
-            id: b.id,
-            title: b.title,
-            bill_type: b.bill_type || 'financial',
-            created_at: b.created_at,
-            excerpt: b.ai_summary_en
-              ? (b.ai_summary_en.length > 160 ? b.ai_summary_en.substring(0, 160) + '...' : b.ai_summary_en)
-              : (b.title.includes('Finance')
-                ? "Introduces motor vehicle circulation taxes, fuel levies, and withholding tax adjustments impacting transport operators."
-                : "Establishes mandatory annual county operating permits, SACCO registration, and helmet safety standards.")
-          }));
-          setBills(formattedBills);
+          setBills(response.bills);
         } else {
           setBills(DEFAULT_DEMO_BILLS);
         }
@@ -64,6 +54,15 @@ export default function BillsPage() {
       default:
         return <span className="badge-neutral">Financial</span>;
     }
+  };
+
+  const getBillTeaser = (bill) => {
+    const text = bill.ai_summary_en || (
+      bill.title.includes('Finance')
+        ? "The Finance Bill, 2024 proposes significant taxation and fiscal adjustments aimed at revenue mobilization for transport operators."
+        : "These county regulations mandate annual county operating permits for commercial motorcycle operators in Nairobi."
+    );
+    return truncateWords(text, 16);
   };
 
   return (
@@ -107,7 +106,7 @@ export default function BillsPage() {
               </div>
 
               <p className="card-description" style={{ marginBottom: '1rem' }}>
-                {bill.excerpt}
+                {getBillTeaser(bill)}
               </p>
 
               <div style={{

@@ -94,7 +94,7 @@ export default function SubscribePage() {
   };
 
   return (
-    <div className="container animate-fade-in" style={{ maxWidth: '650px' }}>
+    <div className="container animate-fade-in">
       <div className="page-header" style={{ marginBottom: '2rem', textAlign: 'center' }}>
         <h1 className="page-title">Subscribe to Legislative Alerts</h1>
         <p className="page-subtitle">

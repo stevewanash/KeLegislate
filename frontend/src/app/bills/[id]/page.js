@@ -13,13 +13,9 @@ const DEMO_BILLS_FALLBACK = {
     bill_type: "financial",
     created_at: "2026-08-01T00:00:00Z",
     source_url: "https://parliament.go.ke/bills/finance-bill-2024.pdf",
-    ai_summary_en: "The bill introduces key provisions regulating motorcycle taxi operations and transport levies. It establishes mandatory annual vehicle circulation levies calculated at 2.5% of declared value, designated SACCO membership requirements, standard safety helmet specifications, and withholding tax adjustments for transport micro-enterprises.",
-    ai_summary_sw: "Mswada huu unaleta vifungu muhimu vinavyodhibiti usafiri wa pikipiki (bodaboda) na ushuru wa usafiri. Unaweka ada za lazima za ushuru wa kila mwaka wa asilimia 2.5 ya thamani ya chombo, mahitaji ya kujiunga na SACCO rasmi, viwango vya kofia za usalama, na marekebisho ya kodi ya zuio kwa biashara ndogo za usafiri.",
-    tags: ["Transport & Logistics", "Finance & Mobile Money"],
-    regex_extractions: [
-      { type: "Levy Rate", value: "2.5%", context: "Annual vehicle circulation levy calculated at 2.5% of declared value." },
-      { type: "Minimum Threshold", value: "KES 5,000", context: "Minimum annual circulation levy charge of KES 5,000 per operator." }
-    ]
+    ai_summary_en: "The Finance Bill, 2024 proposes significant taxation and fiscal adjustments aimed at revenue mobilization. For transport and mobility operators, key proposals include introducing an annual motor vehicle circulation tax calculated at 2.5% of the vehicle's declared value (with a minimum statutory cap of KES 5,000), revisions to fuel levy tariffs, and adjusted withholding tax thresholds for micro-enterprises.\n\nThe legislation also updates excise duties and introduces standardized electronic invoicing requirements. These provisions collectively alter operating overheads, fleet licensing costs, and daily cash-flow requirements for commercial transport service providers across Kenya.",
+    ai_summary_sw: "Mswada wa Fedha, 2024 unapendekeza mabadiliko makubwa ya kodi na fedha yenye lengo la kuongeza mapato ya serikali. Kwa waendeshaji wa sekta ya usafirishaji, mapendekezo makuu ni pamoja na kuanzishwa kwa ushuru wa kila mwaka wa mzunguko wa magari uliopangwa kwa asilimia 2.5 ya thamani ya chombo (huku kima cha chini kikiwa KES 5,000), marekebisho ya tozo za mafuta, na viwango vya kodi ya zuio kwa biashara ndogo ndogo.\n\nSheria hii pia inasasisha ushuru wa bidhaa na kuanzisha mfumo wa ankara za kielektroniki. Vifungu hivi kwa pamoja vinabadilisha gharama za uendeshaji, ada za leseni, na mzunguko wa pesa wa kila siku kwa wahudumu wa usafiri nchini Kenya.",
+    tags: ["Transport & Logistics", "Finance & Mobile Money"]
   },
   "nairobi-bodaboda-regulations-2025": {
     id: "nairobi-bodaboda-regulations-2025",
@@ -27,13 +23,9 @@ const DEMO_BILLS_FALLBACK = {
     bill_type: "regulatory",
     created_at: "2026-08-05T00:00:00Z",
     source_url: "https://nairobi.go.ke/gazette/bodaboda-regulations-2025.pdf",
-    ai_summary_en: "These county regulations mandate annual county operating permits for all commercial motorcycle taxi operators in Nairobi County. They enforce designated SACCO registration, biometric rider badge identification, two standard reflective helmets, and designated CBD pick-and-drop zones.",
-    ai_summary_sw: "Kanuni hizi za kaunti zinalazimisha vibali vya uendeshaji vya kila mwaka vya kaunti kwa waendeshaji wote wa bodaboda za kibiashara katika Kaunti ya Nairobi. Zinasisitiza usajili wa SACCO maalum, vitambulisho vya kibiometria vya waendeshaji, kofia mbili za usalama zenye viakisi, na maeneo maalum ya kushusha na kupakia mjini CBD.",
-    tags: ["Transport & Logistics"],
-    regex_extractions: [
-      { type: "Permit Fee", value: "KES 3,000", context: "Annual county operating permit fee per commercial motorcycle." },
-      { type: "Penalty Charge", value: "KES 10,000", context: "Fine for operating without a valid county permit or SACCO registration badge." }
-    ]
+    ai_summary_en: "These county regulations mandate annual county operating permits for all commercial motorcycle taxi operators in Nairobi County. They enforce designated SACCO registration, biometric rider badge identification, two standard reflective helmets, and designated CBD pick-and-drop zones.\n\nFailure to comply with operating permits or safety specifications attracts county fines of up to KES 10,000 or vehicle impoundment.",
+    ai_summary_sw: "Kanuni hizi za kaunti zinalazimisha vibali vya uendeshaji vya kila mwaka vya kaunti kwa waendeshaji wote wa bodaboda za kibiashara katika Kaunti ya Nairobi. Zinasisitiza usajili wa SACCO maalum, vitambulisho vya kibiometria vya waendeshaji, kofia mbili za usalama zenye viakisi, na maeneo maalum ya kushusha na kupakia mjini CBD.\n\nKukosa kufuata kanuni za vibali au viwango vya usalama kunaweza kupelekea faini ya hadi KES 10,000 au kuzuiliwa kwa chombo.",
+    tags: ["Transport & Logistics"]
   }
 };
 
@@ -47,28 +39,14 @@ export default function BillDetailPage() {
   const [lang, setLang] = useState('en');
 
   // Feedback form state
-  const [user, setUser] = useState(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [stance, setStance] = useState('support');
   const [rating, setRating] = useState(5);
   const [concerns, setConcerns] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+  const [feedbackInfo, setFeedbackInfo] = useState('');
   const [feedbackError, setFeedbackError] = useState(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data?.session?.user || null);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-
-    return () => {
-      authListener?.subscription?.unsubscribe();
-    };
-  }, []);
 
   useEffect(() => {
     if (!billId) return;
@@ -97,6 +75,7 @@ export default function BillDetailPage() {
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     setFeedbackError(null);
+    setFeedbackInfo('');
 
     if (!stance) {
       setFeedbackError('Please select your stance (Support, Oppose, or Neutral).');
@@ -116,23 +95,36 @@ export default function BillDetailPage() {
       const token = currentSession.access_token;
       await api.submitFeedback(billId, stance, rating, concerns, token);
       setFeedbackSuccess(true);
+      await supabase.auth.signOut().catch(() => {});
     } catch (err) {
       console.error('Feedback error:', err);
-      setFeedbackError(err.message || 'Failed to submit feedback');
+      if (err.message && (err.message.includes('already submitted') || err.message.includes('409'))) {
+        setFeedbackInfo("You've already submitted feedback for this bill.");
+      } else {
+        setFeedbackError(err.message || 'Failed to submit feedback');
+      }
+      await supabase.auth.signOut().catch(() => {});
     } finally {
       setSubmittingFeedback(false);
     }
   };
 
   const onAuthSuccess = async (session) => {
-    setUser(session?.user || null);
     if (session?.access_token) {
       try {
         setSubmittingFeedback(true);
+        setFeedbackError(null);
+        setFeedbackInfo('');
         await api.submitFeedback(billId, stance, rating, concerns, session.access_token);
         setFeedbackSuccess(true);
+        await supabase.auth.signOut().catch(() => {});
       } catch (err) {
-        setFeedbackError(err.message || 'Failed to submit feedback');
+        if (err.message && (err.message.includes('already submitted') || err.message.includes('409'))) {
+          setFeedbackInfo("You've already submitted feedback for this bill.");
+        } else {
+          setFeedbackError(err.message || 'Failed to submit feedback');
+        }
+        await supabase.auth.signOut().catch(() => {});
       } finally {
         setSubmittingFeedback(false);
       }
@@ -154,7 +146,7 @@ export default function BillDetailPage() {
     : 'August 2026';
 
   return (
-    <div className="container animate-fade-in" style={{ maxWidth: '800px' }}>
+    <div className="container animate-fade-in">
       {/* Back Link */}
       <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
         <a href="/bills" className="back-link">
@@ -243,7 +235,7 @@ export default function BillDetailPage() {
               </div>
             )}
 
-            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.65', marginBottom: '1.5rem', whiteSpace: 'pre-line' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.7', marginBottom: '1.5rem', whiteSpace: 'pre-line' }}>
               {currentSummary()}
             </p>
 
@@ -280,28 +272,6 @@ export default function BillDetailPage() {
             </div>
           </div>
 
-          {/* Key Extracted Legal Provisions */}
-          {bill.regex_extractions && Array.isArray(bill.regex_extractions) && bill.regex_extractions.length > 0 && (
-            <div className="content-card" style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>
-                Key Extracted Legal Provisions
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                {bill.regex_extractions.map((ext, idx) => (
-                  <div key={idx} style={{ padding: '0.85rem 1rem', background: '#f8fafc', borderLeft: '3px solid var(--primary)', borderRadius: '0 8px 8px 0' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.25rem' }}>
-                      <span className="badge-neutral" style={{ fontSize: '0.7rem' }}>{ext.type || ext.key || 'Provision'}</span>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{ext.value || ext.val}</strong>
-                    </div>
-                    {ext.context && (
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{ext.context}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Citizen Feedback Form */}
           <div className="content-card" style={{ marginBottom: '3rem' }}>
             <h3 className="feedback-title" style={{ fontSize: '1.2rem', marginBottom: '0.25rem' }}>
@@ -315,6 +285,12 @@ export default function BillDetailPage() {
               <div style={{ padding: '1.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', textAlign: 'center' }}>
                 <p style={{ color: '#166534', fontWeight: 600, fontSize: '0.95rem' }}>
                   Thank you! Your feedback has been recorded.
+                </p>
+              </div>
+            ) : feedbackInfo ? (
+              <div style={{ padding: '1.25rem', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '8px', textAlign: 'center' }}>
+                <p style={{ color: '#1e40af', fontWeight: 600, fontSize: '0.95rem' }}>
+                  ℹ️ {feedbackInfo}
                 </p>
               </div>
             ) : (

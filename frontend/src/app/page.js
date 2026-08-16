@@ -172,14 +172,14 @@ export default function Home() {
         <a 
           href="/bills" 
           className="btn-primary-purple" 
-          style={{ textDecoration: 'none', display: 'inline-flex', width: 'auto', padding: '0.85rem 1.75rem' }}
+          style={{ width: 'auto', padding: '0.85rem 1.75rem' }}
         >
           Browse Analyzed Bills
         </a>
         <a 
           href="/subscribe" 
-          className="stance-btn" 
-          style={{ textDecoration: 'none', display: 'inline-flex', padding: '0.85rem 1.75rem' }}
+          className="btn-secondary-outline" 
+          style={{ padding: '0.85rem 1.75rem' }}
         >
           Get SMS Alerts
         </a>

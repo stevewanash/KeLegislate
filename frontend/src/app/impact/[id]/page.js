@@ -20,28 +20,14 @@ export default function ImpactDetailPage() {
   const [calcResult, setCalcResult] = useState(null);
 
   // Feedback Form state
-  const [user, setUser] = useState(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [support, setSupport] = useState('support');
   const [rating, setRating] = useState(5);
   const [concerns, setConcerns] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+  const [feedbackInfo, setFeedbackInfo] = useState('');
   const [feedbackError, setFeedbackError] = useState(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data?.session?.user || null);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-
-    return () => {
-      authListener?.subscription?.unsubscribe();
-    };
-  }, []);
 
   useEffect(() => {
     if (!billId) return;
@@ -102,6 +88,7 @@ export default function ImpactDetailPage() {
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     setFeedbackError(null);
+    setFeedbackInfo('');
 
     const sessionRes = await supabase.auth.getSession();
     const currentSession = sessionRes?.data?.session;
@@ -116,23 +103,36 @@ export default function ImpactDetailPage() {
       const token = currentSession.access_token;
       await api.submitFeedback(billId, support, rating, concerns, token);
       setFeedbackSuccess(true);
+      await supabase.auth.signOut().catch(() => {});
     } catch (err) {
       console.error('Feedback error:', err);
-      setFeedbackError(err.message || 'Failed to submit feedback');
+      if (err.message && (err.message.includes('already submitted') || err.message.includes('409'))) {
+        setFeedbackInfo("You've already submitted feedback for this bill.");
+      } else {
+        setFeedbackError(err.message || 'Failed to submit feedback');
+      }
+      await supabase.auth.signOut().catch(() => {});
     } finally {
       setSubmittingFeedback(false);
     }
   };
 
   const onAuthSuccess = async (session) => {
-    setUser(session?.user || null);
     if (session?.access_token) {
       try {
         setSubmittingFeedback(true);
+        setFeedbackError(null);
+        setFeedbackInfo('');
         await api.submitFeedback(billId, support, rating, concerns, session.access_token);
         setFeedbackSuccess(true);
+        await supabase.auth.signOut().catch(() => {});
       } catch (err) {
-        setFeedbackError(err.message || 'Failed to submit feedback');
+        if (err.message && (err.message.includes('already submitted') || err.message.includes('409'))) {
+          setFeedbackInfo("You've already submitted feedback for this bill.");
+        } else {
+          setFeedbackError(err.message || 'Failed to submit feedback');
+        }
+        await supabase.auth.signOut().catch(() => {});
       } finally {
         setSubmittingFeedback(false);
       }
@@ -142,7 +142,7 @@ export default function ImpactDetailPage() {
   const isFinancial = impactData?.bill_type !== 'regulatory';
 
   return (
-    <div className="container animate-fade-in" style={{ maxWidth: '800px' }}>
+    <div className="container animate-fade-in">
       {/* Back Link */}
       <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
         <a href="/impact" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>
@@ -354,6 +354,12 @@ export default function ImpactDetailPage() {
                   Thank you! Your feedback has been recorded.
                 </p>
               </div>
+            ) : feedbackInfo ? (
+              <div style={{ padding: '1.25rem', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '8px', textAlign: 'center' }}>
+                <p style={{ color: '#1e40af', fontWeight: 600, fontSize: '0.95rem' }}>
+                  ℹ️ {feedbackInfo}
+                </p>
+              </div>
             ) : (
               <form onSubmit={handleFeedbackSubmit}>
                 {feedbackError && (
@@ -415,8 +421,8 @@ export default function ImpactDetailPage() {
                   />
                 </div>
 
-                <button type="submit" className="btn-primary-purple">
-                  Submit Feedback
+                <button type="submit" className="btn-primary-purple" disabled={submittingFeedback}>
+                  {submittingFeedback ? 'Submitting Feedback...' : 'Submit Feedback'}
                 </button>
               </form>
             )}

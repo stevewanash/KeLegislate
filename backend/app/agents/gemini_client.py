@@ -37,8 +37,14 @@ def get_gemini_client(timeout: int = 60000) -> genai.Client:
     vertex_project = getattr(settings, "VERTEX_PROJECT", None)
     vertex_location = getattr(settings, "VERTEX_LOCATION", "us-central1")
 
-    if google_creds and os.path.exists(google_creds):
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_creds
+    if google_creds:
+        if not os.path.isabs(google_creds) and not os.path.exists(google_creds):
+            # check in workspace root directory
+            parent_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), google_creds)
+            if os.path.exists(parent_path):
+                google_creds = parent_path
+        if os.path.exists(google_creds):
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath(google_creds)
 
     kwargs: dict[str, Any] = {
         "http_options": {"timeout": timeout},

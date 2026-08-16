@@ -71,7 +71,7 @@ async def get_bills(
 
         # 2. Build optimized query selecting only columns needed for list view
         query = supabase_admin.table("bills").select(
-            "id, title, bill_type, created_at, ai_status",
+            "id, title, bill_type, created_at, ai_status, ai_summary_en",
             count="exact"
         )
         
@@ -89,9 +89,10 @@ async def get_bills(
         raw_bills = res.data or []
         total_count = res.count if res.count is not None else len(raw_bills)
 
-        # 3. Fetch tags for all returned bill IDs
+        # 3. Fetch tags and impact concise summaries for all returned bill IDs
         bill_ids = [b["id"] for b in raw_bills]
         tags_by_bill = {}
+        impact_summary_by_bill = {}
         if bill_ids:
             tags_res = supabase_admin.table("bill_tags").select("bill_id, industry_tag").in_("bill_id", bill_ids).execute()
             if tags_res.data:
@@ -100,6 +101,14 @@ async def get_bills(
                     if b_id not in tags_by_bill:
                         tags_by_bill[b_id] = []
                     tags_by_bill[b_id].append(row["industry_tag"])
+
+            impact_res = supabase_admin.table("tier_impact_cache").select("bill_id, impact_data").in_("bill_id", bill_ids).execute()
+            if impact_res.data:
+                for row in impact_res.data:
+                    b_id = row["bill_id"]
+                    idata = row.get("impact_data") or {}
+                    if isinstance(idata, dict) and idata.get("concise_summary"):
+                        impact_summary_by_bill[b_id] = idata["concise_summary"]
 
         # 4. Construct response models
         briefs = []
@@ -126,7 +135,9 @@ async def get_bills(
                     tags=tags_by_bill.get(b["id"], []),
                     bill_type=valid_bill_type,
                     created_at=created_at_dt,
-                    ai_status=b.get("ai_status", "ingested")
+                    ai_status=b.get("ai_status", "ingested"),
+                    ai_summary_en=b.get("ai_summary_en"),
+                    impact_summary=impact_summary_by_bill.get(b["id"])
                 )
             )
 

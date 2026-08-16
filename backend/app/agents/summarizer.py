@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class BillSummary(BaseModel):
     """Structured Pydantic model for English bill summarization output."""
     summary_en: str = Field(
-        description="Comprehensive, objective, plain-language English summary of the bill."
+        description="2–4 paragraphs (roughly 250–450 words) of plain-language English explaining the whole bill for a general reader: what it is, why it was introduced, its main provisions and mechanisms, who is affected broadly, and key timelines/penalties where present. Use paragraph breaks. Do not focus on a single industry."
     )
     implications_citizens: List[str] = Field(
         description="Bullet points detailing direct impact on citizens, consumers, and riders."
@@ -43,7 +43,7 @@ You are an expert legislative analyst and civic technology assistant for Hustley
 Your task is to analyze proposed legislation (bills, acts, county regulations) and generate a clear, objective, plain-language English summary tailored for Kenyan citizens and micro-entrepreneurs.
 
 STRICT CONSTRAINTS:
-1. Provide a comprehensive English summary (`summary_en`).
+1. Provide a comprehensive, multi-paragraph English summary (`summary_en`). The `summary_en` MUST be 2–4 paragraphs (roughly 250–450 words), general-purpose, and standalone-readable without sector-specific impact context. Use paragraph breaks between paragraphs.
 2. List direct implications for everyday citizens (`implications_citizens`).
 3. List direct implications for small businesses and micro-enterprises (`implications_business`).
 4. Select industry tags ONLY from this canonical list:

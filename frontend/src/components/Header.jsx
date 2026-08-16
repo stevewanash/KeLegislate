@@ -2,47 +2,41 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { supabase, signOutUser } from '../lib/supabase';
-import AuthModal from './AuthModal';
 
 export default function Header() {
-  const [user, setUser] = useState(null);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
 
+  // Close mobile drawer on route navigation
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data?.session?.user || null);
-    });
+    setDrawerOpen(false);
+  }, [pathname]);
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-
+  // Lock body scroll when drawer is open on mobile
+  useEffect(() => {
+    if (drawerOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
     return () => {
-      authListener?.subscription?.unsubscribe();
+      document.body.style.overflow = '';
     };
-  }, []);
+  }, [drawerOpen]);
 
-  const handleLogout = async () => {
-    try {
-      await signOutUser();
-      setUser(null);
-    } catch (err) {
-      console.error('Logout error:', err);
-    }
-  };
+  const navLinks = [
+    { href: '/', label: 'Home', exact: true },
+    { href: '/bills', label: 'Browse Bills', exact: false },
+    { href: '/impact', label: 'Impact', exact: false },
+    { href: '/subscribe', label: 'Subscribe', exact: true },
+    { href: '/dashboard', label: 'Dashboard', exact: true },
+  ];
 
-  const formatUserPhone = (phone) => {
-    if (!phone) return 'Account';
-    let cleaned = phone;
-    if (cleaned.startsWith('+254')) {
-      cleaned = `0${cleaned.slice(4)}`;
+  const isLinkActive = (link) => {
+    if (link.exact) {
+      return pathname === link.href;
     }
-    if (cleaned.length >= 10) {
-      return `${cleaned.slice(0, 4)}***${cleaned.slice(-3)}`;
-    }
-    return cleaned;
+    return pathname === link.href || pathname?.startsWith(`${link.href}/`);
   };
 
   return (
@@ -55,48 +49,88 @@ export default function Header() {
             </span>
           </a>
 
+          {/* Desktop Horizontal Navigation */}
           <nav className="nav-menu">
-            <a href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>
-              Home
-            </a>
-            <a href="/bills" className={`nav-link ${pathname === '/bills' ? 'active' : ''}`}>
-              Browse Bills
-            </a>
-            <a href="/impact" className={`nav-link ${pathname?.startsWith('/impact') ? 'active' : ''}`}>
-              Impact & Calculators
-            </a>
-            <a href="/subscribe" className={`nav-link ${pathname === '/subscribe' ? 'active' : ''}`}>
-              Subscribe
-            </a>
-            <a href="/dashboard" className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>
-              Dashboard
-            </a>
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className={`nav-link ${isLinkActive(link) ? 'active' : ''}`}
+              >
+                {link.label}
+              </a>
+            ))}
           </nav>
 
-          <div className="header-controls" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {user && (
-              <div className="user-profile-pill">
-                <span>{formatUserPhone(user.phone)}</span>
-                <button
-                  className="logout-icon-btn"
-                  onClick={handleLogout}
-                  title="Log out"
-                  aria-label="Log out"
-                >
-                  Sign Out
-                </button>
-              </div>
-            )}
-          </div>
-
+          {/* Mobile Hamburger Toggle Button */}
+          <button
+            type="button"
+            className="nav-toggle"
+            onClick={() => setDrawerOpen(!drawerOpen)}
+            aria-label="Toggle navigation menu"
+            aria-expanded={drawerOpen}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {drawerOpen ? (
+                <>
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </>
+              ) : (
+                <>
+                  <line x1="3" y1="12" x2="21" y2="12"></line>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <line x1="3" y1="18" x2="21" y2="18"></line>
+                </>
+              )}
+            </svg>
+          </button>
         </div>
       </header>
 
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        onSuccess={(session) => setUser(session?.user || null)}
-      />
+      {/* Mobile Slide-Over Sidebar Drawer */}
+      {drawerOpen && (
+        <div
+          className="nav-drawer-backdrop"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        >
+          <div
+            className="nav-drawer"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation Menu"
+          >
+            <div className="nav-drawer-header">
+              <span style={{ fontFamily: 'var(--font-title)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                HustleYeTu
+              </span>
+              <button
+                type="button"
+                className="nav-drawer-close"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close navigation menu"
+              >
+                ✕
+              </button>
+            </div>
+
+            <nav className="nav-drawer-links">
+              {navLinks.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className={`nav-drawer-link ${isLinkActive(link) ? 'active' : ''}`}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
     </>
   );
 }

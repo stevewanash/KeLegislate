@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
+import { truncateWords } from '../../lib/excerpt';
 
 const DEFAULT_DEMO_BILLS = [
   {
@@ -9,14 +10,14 @@ const DEFAULT_DEMO_BILLS = [
     title: "The Finance Bill, 2024",
     bill_type: "financial",
     created_at: "2026-08-01T00:00:00Z",
-    excerpt: "Introduces motor vehicle circulation taxes, fuel levies, and withholding tax adjustments impacting boda boda transport operators."
+    impact_summary: "Key financial and tax changes for the transport sector, including an annual motor vehicle circulation tax."
   },
   {
     id: "a7e1b8e6-b31e-42b6-8bc5-37be68ffecde",
     title: "The Nairobi City County Transport Act, 2020 — Motorcycle Taxi (Boda Boda) Permit Regulations, 2025",
     bill_type: "regulatory",
     created_at: "2026-08-05T00:00:00Z",
-    excerpt: "Establishes mandatory annual county operating permit registration, designated SACCO membership, helmet safety standards, and compliance deadlines."
+    impact_summary: "Key regulatory and compliance requirements for commercial motorcycle operators in Nairobi County."
   }
 ];
 
@@ -32,7 +33,22 @@ export default function ImpactListPage() {
         setLoading(true);
         const res = await api.getBills(1, 50);
         if (res && res.bills && res.bills.length > 0) {
-          setBills(res.bills);
+          // If some bills lack impact_summary, fetch in parallel
+          const billsWithImpact = await Promise.all(
+            res.bills.map(async (b) => {
+              if (b.impact_summary) return b;
+              try {
+                const impactRes = await api.getImpact(b.id);
+                return {
+                  ...b,
+                  impact_summary: impactRes?.concise_summary || b.ai_summary_en || ''
+                };
+              } catch (e) {
+                return b;
+              }
+            })
+          );
+          setBills(billsWithImpact);
         } else {
           setBills(DEFAULT_DEMO_BILLS);
         }
@@ -53,6 +69,15 @@ export default function ImpactListPage() {
 
   const getBillTypeBadge = (type) => {
     return <span className="badge-neutral">{type === 'regulatory' ? 'Regulatory' : 'Financial'}</span>;
+  };
+
+  const getImpactTeaser = (bill) => {
+    const text = bill.impact_summary || bill.concise_summary || (
+      bill.bill_type === 'regulatory'
+        ? "Key regulatory compliance requirements, SACCO mandates, and county permit enforcement rules for transport operators."
+        : "Key financial and tax policy impacts, motor vehicle levies, and cash-flow estimates for transport operators."
+    );
+    return truncateWords(text, 16);
   };
 
   return (
@@ -128,7 +153,7 @@ export default function ImpactListPage() {
               </div>
 
               <p className="card-description" style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-                {bill.ai_summary_en || bill.excerpt || 'Pre-generated worked example impact analysis and interactive compliance tools.'}
+                {getImpactTeaser(bill)}
               </p>
 
               <div style={{

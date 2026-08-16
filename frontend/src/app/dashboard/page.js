@@ -106,7 +106,7 @@ export default function DashboardPage() {
       )}
 
       {!loading && stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+        <div className="dashboard-grid">
           {/* Sentiment Distribution Card */}
           <div className="content-card">
             <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '1.25rem', color: 'var(--text-primary)' }}>
@@ -173,7 +173,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Top Concerns list */}
-          <div className="content-card" style={{ gridColumn: 'span 1' }}>
+          <div className="content-card">
             <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>Top Public Concerns</h3>
             {topConcerns.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
