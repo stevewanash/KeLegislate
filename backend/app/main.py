@@ -11,7 +11,7 @@ app = FastAPI(
 
 # CORS setup
 origins = [
-    "https://hustleyetu.vercel.app",
+    "https://hustleyetu.aibuildathon.dev",
     "http://localhost:3000",
 ]
 
