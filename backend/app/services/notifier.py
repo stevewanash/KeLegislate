@@ -147,9 +147,9 @@ async def send_bill_alerts(bill_id: str, force: bool = False) -> Dict[str, Any]:
             continue
 
         if lang.lower() in ("sw", "swahili"):
-            msg = f"Taarifa ya Hustleyetu: Mswada mpya '{bill_title}' unaweza kuathiri biashara yako. Pata maelezo na ushiriki wa umma kwa https://hustleyetu.aibuildathon.dev/bills/{bill_id}"
+            msg = f"Taarifa ya Hustleyetu: Mswada mpya '{bill_title}' unaweza kuathiri biashara yako. Pata maelezo na ushiriki wa umma kwa https://hustleyetu.aibuildathon.dev/impact/{bill_id}"
         else:
-            msg = f"Hustleyetu Alert: New bill '{bill_title}' may impact your business. View details and public participation info at https://hustleyetu.aibuildathon.dev/bills/{bill_id}"
+            msg = f"Hustleyetu Alert: New bill '{bill_title}' may impact your business. View details and public participation info at https://hustleyetu.aibuildathon.dev/impact/{bill_id}"
 
         now_iso = datetime.now(timezone.utc).isoformat()
         at_msg_id = None
